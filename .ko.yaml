@@ -13,9 +13,9 @@ builds:
       - CGO_ENABLED=0
     flags:
       - -trimpath
-      - -tags=netgo
-      - -installsuffix=netgo
+      - -tags
+      - netgo
     ldflags:
-      - -s
-      - -w
-      - -extldflags=-static
+      - -s -w
+      - -extldflags "-static"
+      - -X github.com/markussiebert/homeddns.buildVersion={{.Env.VERSION}}

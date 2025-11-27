@@ -22,17 +22,17 @@ env = { GOOS = "linux", GOARCH = "arm64" }
 
 [tasks."build:ko"]
 description = "Build container image with Ko (local)"
-run = "version=$(tr -d '\n' < VERSION) && GOFLAGS=\"-trimpath -ldflags=\\\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\\\"\" ko build . --local"
+run = "VERSION=$(cat VERSION) ko build . --local --bare"
 env = { KO_DOCKER_REPO = "ko.local" }
 
 [tasks."build:ko-push"]
 description = "Build and push container image with Ko"
-run = "version=$(tr -d '\n' < VERSION) && GOFLAGS=\"-trimpath -ldflags=\\\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\\\"\" ko build ."
+run = "VERSION=$(cat VERSION) ko build . --bare"
 env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
 
 [tasks."build:ko-multiplatform"]
 description = "Build multi-platform container image with Ko"
-run = "version=$(tr -d '\n' < VERSION) && GOFLAGS=\"-trimpath -ldflags=\\\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\\\"\" ko build . --platform=linux/amd64,linux/arm64"
+run = "VERSION=$(cat VERSION) ko build . --bare --platform=linux/amd64,linux/arm64"
 env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
 
 [tasks.test]

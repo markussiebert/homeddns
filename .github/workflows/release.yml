@@ -33,19 +33,15 @@ jobs:
           version: 2025.11.10
       - name: Run tests
         run: mise run test
-      - name: Install svu
-        run: |
-          curl -fsSL https://github.com/caarlos0/svu/releases/download/v2.4.0/svu_2.4.0_linux_amd64.tar.gz | tar -xz
-          sudo mv svu /usr/local/bin/
       - id: compute_version
         name: Compute next version with svu
         run: |
           set -euo pipefail
           bump="${{ github.event.inputs.bump }}"
           if [ "$bump" = "next" ]; then
-            new_version=$(svu next)
+            new_version=$(mise exec -- svu next)
           else
-            new_version=$(svu $bump)
+            new_version=$(mise exec -- svu $bump)
           fi
           echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
           echo "Computed version: $new_version"
