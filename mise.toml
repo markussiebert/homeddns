@@ -1,0 +1,82 @@
+[tools]
+go = "1.25.4"
+ko = "0.18.0"
+svu = "3.3.0"
+
+[env]
+CGO_ENABLED = "0"
+
+[tasks.build]
+description = "Build homeddns binary for current platform"
+run = "version=$(tr -d '\n' < VERSION) && go build -trimpath -ldflags=\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\" -o homeddns ."
+
+[tasks."build:linux"]
+description = "Build homeddns binary for Linux AMD64 (optimized)"
+run = "version=$(tr -d '\n' < VERSION) && go build -trimpath -ldflags=\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\" -tags netgo -installsuffix netgo -o homeddns-linux-amd64 ."
+env = { GOOS = "linux", GOARCH = "amd64" }
+
+[tasks."build:linux-arm"]
+description = "Build homeddns binary for Linux ARM64 (optimized)"
+run = "version=$(tr -d '\n' < VERSION) && go build -trimpath -ldflags=\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\" -tags netgo -installsuffix netgo -o homeddns-linux-arm64 ."
+env = { GOOS = "linux", GOARCH = "arm64" }
+
+[tasks."build:ko"]
+description = "Build container image with Ko (local)"
+run = "version=$(tr -d '\n' < VERSION) && GOFLAGS=\"-trimpath -ldflags=\\\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\\\"\" ko build . --local"
+env = { KO_DOCKER_REPO = "ko.local" }
+
+[tasks."build:ko-push"]
+description = "Build and push container image with Ko"
+run = "version=$(tr -d '\n' < VERSION) && GOFLAGS=\"-trimpath -ldflags=\\\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\\\"\" ko build ."
+env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
+
+[tasks."build:ko-multiplatform"]
+description = "Build multi-platform container image with Ko"
+run = "version=$(tr -d '\n' < VERSION) && GOFLAGS=\"-trimpath -ldflags=\\\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\\\"\" ko build . --platform=linux/amd64,linux/arm64"
+env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
+
+[tasks.test]
+description = "Run all tests"
+run = "go test ./..."
+
+[tasks."test:verbose"]
+description = "Run all tests with verbose output"
+run = "go test -v ./..."
+
+[tasks."test:provider"]
+description = "Test provider package only"
+run = "go test ./internal/provider"
+
+[tasks.fmt]
+description = "Format Go code"
+run = "go fmt ./..."
+
+[tasks.tidy]
+description = "Tidy go modules"
+run = "go mod tidy"
+
+[tasks.run]
+description = "Run homeddns server (set env vars: AUTH_USERNAME, AUTH_PASSWORD_HASH, etc.)"
+run = "go run main.go server"
+
+[tasks."run:dev"]
+description = "Run server with example netcup_ccp config (requires .env.local)"
+run = "go run main.go server"
+sources = [".env.local"]
+
+[tasks."run:update"]
+description = "Run update command (usage: mise run run:update -- <hostname>)"
+run = "go run main.go update"
+
+[tasks."build:size"]
+description = "Show size comparison of built binaries"
+run = "ls -lh homeddns* 2>/dev/null | awk '{print $5, $9}' || echo 'No binaries found. Run mise run build first.'"
+
+[tasks.clean]
+description = "Clean build artifacts"
+run = "rm -f homeddns homeddns-linux-* cdk-dynamic-dns dyndns *.tar"
+
+[tasks.dev]
+description = "Run in development mode with auto-reload (requires watchexec)"
+run = "watchexec -r -e go -- go run main.go server"
+sources = [".env.local"]

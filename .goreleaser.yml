@@ -1,0 +1,53 @@
+project_name: homeddns
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: homeddns
+    main: .
+    binary: homeddns
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - "-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion={{ .Version }}"
+    flags:
+      - -trimpath
+
+archives:
+  - id: binaries
+    format: tar.gz
+    builds:
+      - homeddns
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    replacements:
+      darwin: macos
+      linux: linux
+      amd64: x86_64
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+release:
+  github:
+    owner: markussiebert
+    name: homeddns
+  draft: false
+  prerelease: auto
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

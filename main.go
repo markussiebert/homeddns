@@ -1,0 +1,73 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/alecthomas/kong"
+	"github.com/markussiebert/homeddns/cmd"
+	"github.com/markussiebert/homeddns/internal/provider"
+)
+
+// CLI holds the command-line interface structure.
+type CLI struct {
+	Server struct {
+		Port int `help:"Port to listen on." default:"8080"`
+	} `cmd:"" help:"Run as a web server."`
+
+	Update struct {
+		Hostname string `arg:"" help:"Hostname to update (e.g., sub.domain.com)."`
+		Type     string `help:"Record type (A or AAAA)." default:"A" enum:"A,AAAA"`
+	} `cmd:"" help:"Update a DNS record with the current public IP."`
+
+	Version struct{} `cmd:"" help:"Print the current version."`
+
+	ListProviders bool `help:"List available DNS providers."`
+}
+
+var (
+	buildVersion = "dev"
+)
+
+const fallbackVersion = "0.0.0-dev"
+
+func versionString() string {
+	if trimmed := strings.TrimSpace(buildVersion); trimmed != "" {
+		return trimmed
+	}
+	return fallbackVersion
+}
+
+func main() {
+	var cli CLI
+	ctx := kong.Parse(&cli)
+
+	if cli.ListProviders {
+		fmt.Println("Available providers:")
+		for _, name := range provider.List() {
+			fmt.Println("-", name)
+		}
+		return
+	}
+
+	if ctx.Command() == "version" {
+		fmt.Println(versionString())
+		return
+	}
+
+	config, err := cmd.LoadConfig()
+	if err != nil {
+		ctx.FatalIfErrorf(fmt.Errorf("failed to load configuration: %w", err))
+	}
+
+	switch ctx.Command() {
+	case "server":
+		err = cmd.RunServer(cli.Server.Port, config)
+	case "update <hostname>":
+		err = cmd.RunUpdate(cli.Update.Hostname, cli.Update.Type, config)
+	default:
+		err = fmt.Errorf("unknown command: %s", ctx.Command())
+	}
+
+	ctx.FatalIfErrorf(err)
+}

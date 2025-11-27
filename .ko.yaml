@@ -1,0 +1,21 @@
+# Ko configuration for building container images
+# https://ko.build/configuration/
+
+# Use smallest possible base image (distroless static)
+defaultBaseImage: gcr.io/distroless/static-debian12:nonroot
+
+# Build settings for optimized, minimal binaries
+builds:
+  - id: homeddns
+    dir: .
+    main: .
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+      - -tags=netgo
+      - -installsuffix=netgo
+    ldflags:
+      - -s
+      - -w
+      - -extldflags=-static

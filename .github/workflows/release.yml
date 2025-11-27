@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version part to bump'
+        required: false
+        default: next
+        type: choice
+        options:
+          - next
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.11.10
+      - name: Run tests
+        run: mise run test
+      - name: Install svu
+        run: |
+          curl -fsSL https://github.com/caarlos0/svu/releases/download/v2.4.0/svu_2.4.0_linux_amd64.tar.gz | tar -xz
+          sudo mv svu /usr/local/bin/
+      - id: compute_version
+        name: Compute next version with svu
+        run: |
+          set -euo pipefail
+          bump="${{ github.event.inputs.bump }}"
+          if [ "$bump" = "next" ]; then
+            new_version=$(svu next)
+          else
+            new_version=$(svu $bump)
+          fi
+          echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
+          echo "Computed version: $new_version"
+      - name: Update VERSION file
+        run: |
+          echo "${{ steps.compute_version.outputs.new_version }}" | sed 's/^v//' > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore: bump version to ${{ steps.compute_version.outputs.new_version }}"
+          git push origin HEAD
+      - name: Tag release
+        run: |
+          git tag "${{ steps.compute_version.outputs.new_version }}"
+          git push origin "${{ steps.compute_version.outputs.new_version }}"

@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test-and-build:
+    name: CI Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.11.10
+      - name: Run tests
+        run: mise run test
+      - name: Build binary
+        run: mise run build
+      - name: Build Ko image locally
+        run: mise run build:ko

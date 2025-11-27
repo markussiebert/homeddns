@@ -1,0 +1,20 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "packageRules": [
+    {
+      "managers": [
+        "gomod"
+      ],
+      "groupName": "go modules",
+      "automerge": true,
+      "schedule": [
+        "before 5am on monday"
+      ]
+    }
+  ],
+  "go": {
+    "enabled": true
+  }
+}

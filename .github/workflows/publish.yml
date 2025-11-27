@@ -1,0 +1,44 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.11.10
+      - name: Run tests
+        run: mise run test
+      - name: Release binaries with goreleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push multi-platform Ko images
+        run: |
+          export KO_DOCKER_REPO=ghcr.io/${{ github.repository_owner }}
+          version=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          GOFLAGS="-trimpath -ldflags=\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\"" \
+            ko build . --bare --platform=linux/amd64,linux/arm64 --tags $version,latest
