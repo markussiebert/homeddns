@@ -79,10 +79,11 @@ sboms:
     documents:
       - "{{ .ProjectName }}_{{ .Version }}_sbom.spdx.json"
 
-# Sign checksums with cosign
+# Sign checksums with cosign (only in CI with OIDC)
 signs:
   - cmd: cosign
     certificate: "${artifact}.pem"
+    signature: "${artifact}.sig"
     args:
       - sign-blob
       - "--yes"
@@ -91,6 +92,9 @@ signs:
       - "${artifact}"
     artifacts: checksum
     output: true
+    # Skip signing in snapshot mode (local testing)
+    ids:
+      - checksum
 
 # Release settings
 release:

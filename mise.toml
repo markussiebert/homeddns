@@ -96,7 +96,7 @@ echo "✅ GoReleaser config is valid"
 description = "Test full release locally without publishing"
 run = """
 echo "Creating snapshot release (no publish)..."
-goreleaser release --snapshot --clean --skip=publish
+goreleaser release --snapshot --clean --skip=publish,sign
 echo "✅ Snapshot build successful"
 echo "Check ./dist/ for artifacts"
 """
