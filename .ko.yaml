@@ -37,6 +37,10 @@ labels:
   org.opencontainers.image.source: https://github.com/markussiebert/homeddns
   org.opencontainers.image.url: https://github.com/markussiebert/homeddns
   org.opencontainers.image.documentation: https://github.com/markussiebert/homeddns/blob/main/README.md
+  # Home Assistant labels (required for addon detection)
+  io.hass.version: "{{.Env.VERSION}}"
+  io.hass.type: addon
+  io.hass.arch: "armhf|aarch64|i386|amd64"
   # Home Assistant add-on labels
   io.hass.name: "HomeDDNS"
   io.hass.description: "Self-hosted Dynamic DNS service"

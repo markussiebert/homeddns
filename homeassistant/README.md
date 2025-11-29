@@ -39,6 +39,10 @@ Self-hosted Dynamic DNS service with support for multiple DNS providers. Perfect
 
 ## Configuration
 
+### Environment Overrides
+
+The add-on reads user settings from `/data/options.json` by default. If your Supervisor setup stores `options.json` elsewhere, set `ADDON_OPTIONS_PATH` before starting the container to point to the desired file.
+
 ### Generate Password Hash
 
 Before configuring the add-on, you need to generate a bcrypt hash of your password:
