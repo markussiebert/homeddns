@@ -7,35 +7,55 @@ svu = "3.3.0"
 
 [env]
 CGO_ENABLED = "0"
+# Container registry settings
+KO_DOCKER_REPO = "ghcr.io/markussiebert/homeddns"
+# Build metadata
+REPO_NAME = "markussiebert/homeddns"
 
 [tasks.build]
 description = "Build homeddns binary for current platform"
-run = "version=$(tr -d '\n' < VERSION) && go build -trimpath -ldflags=\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\" -o homeddns ."
+run = """
+VERSION=$(tr -d '\n' < VERSION)
+go build -trimpath -ldflags="-s -w -extldflags=-static -X github.com/${REPO_NAME}.buildVersion=${VERSION}" -o homeddns .
+"""
 
 [tasks."build:linux"]
 description = "Build homeddns binary for Linux AMD64 (optimized)"
-run = "version=$(tr -d '\n' < VERSION) && go build -trimpath -ldflags=\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\" -tags netgo -installsuffix netgo -o homeddns-linux-amd64 ."
+run = """
+VERSION=$(tr -d '\n' < VERSION)
+go build -trimpath -ldflags="-s -w -extldflags=-static -X github.com/${REPO_NAME}.buildVersion=${VERSION}" -tags netgo -installsuffix netgo -o homeddns-linux-amd64 .
+"""
 env = { GOOS = "linux", GOARCH = "amd64" }
 
 [tasks."build:linux-arm"]
 description = "Build homeddns binary for Linux ARM64 (optimized)"
-run = "version=$(tr -d '\n' < VERSION) && go build -trimpath -ldflags=\"-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion=$version\" -tags netgo -installsuffix netgo -o homeddns-linux-arm64 ."
+run = """
+VERSION=$(tr -d '\n' < VERSION)
+go build -trimpath -ldflags="-s -w -extldflags=-static -X github.com/${REPO_NAME}.buildVersion=${VERSION}" -tags netgo -installsuffix netgo -o homeddns-linux-arm64 .
+"""
 env = { GOOS = "linux", GOARCH = "arm64" }
 
 [tasks."build:ko"]
 description = "Build container image with Ko (local)"
-run = "VERSION=$(cat VERSION) ko build . --local --bare"
+run = """
+VERSION=$(tr -d '\n' < VERSION)
+ko build . --local --bare --sbom=none
+"""
 env = { KO_DOCKER_REPO = "ko.local" }
 
 [tasks."build:ko-push"]
-description = "Build and push container image with Ko"
-run = "VERSION=$(cat VERSION) ko build . --bare"
-env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
+description = "Build and push container image with Ko (single platform)"
+run = """
+VERSION=$(tr -d '\n' < VERSION)
+ko build . --bare --sbom=none --tags="${VERSION},latest"
+"""
 
 [tasks."build:ko-multiplatform"]
 description = "Build multi-platform container image with Ko"
-run = "VERSION=$(cat VERSION) ko build . --bare --platform=linux/amd64,linux/arm64"
-env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
+run = """
+VERSION=$(tr -d '\n' < VERSION)
+ko build . --bare --sbom=none --platform=linux/amd64,linux/arm64,linux/arm/v7 --tags="${VERSION},latest"
+"""
 
 [tasks.test]
 description = "Run all tests"
@@ -76,7 +96,7 @@ run = "ls -lh homeddns* 2>/dev/null | awk '{print $5, $9}' || echo 'No binaries 
 
 [tasks.clean]
 description = "Clean build artifacts"
-run = "rm -f homeddns homeddns-linux-* cdk-dynamic-dns dyndns *.tar"
+run = "rm -rf homeddns homeddns-linux-* cdk-dynamic-dns dyndns *.tar dist/"
 
 [tasks.dev]
 description = "Run in development mode with auto-reload (requires watchexec)"
@@ -108,7 +128,7 @@ run = "goreleaser release --clean"
 [tasks."release:ko"]
 description = "Build and push multi-arch Ko images with auto-detected version"
 run = """
-VERSION=$(cat VERSION | tr -d '\n')
+VERSION=$(tr -d '\n' < VERSION)
 export VERSION
 export BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 export GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
@@ -121,13 +141,12 @@ ko build . \
   --tags="${VERSION},latest"
 
 echo "✅ Images pushed:"
-echo "  - ghcr.io/markussiebert/homeddns:${VERSION}"
-echo "  - ghcr.io/markussiebert/homeddns:latest"
+echo "  - ${KO_DOCKER_REPO}:${VERSION}"
+echo "  - ${KO_DOCKER_REPO}:latest"
 """
-env = { KO_DOCKER_REPO = "ghcr.io/markussiebert/homeddns" }
 
 [tasks."release:ko-with-version"]
-description = "Build and push Ko images with specific version tag"
+description = "Build and push Ko images with specific version tag (for CI)"
 run = """
 if [ -z "$VERSION_TAG" ]; then
   echo "Error: VERSION_TAG environment variable is required"
@@ -145,18 +164,18 @@ ko build . \
   --tags="${VERSION},latest"
 
 echo "✅ Images pushed:"
-echo "  - ghcr.io/markussiebert/homeddns:${VERSION}"
-echo "  - ghcr.io/markussiebert/homeddns:latest"
+echo "  - ${KO_DOCKER_REPO}:${VERSION}"
+echo "  - ${KO_DOCKER_REPO}:latest"
 """
-env = { KO_DOCKER_REPO = "ghcr.io/markussiebert/homeddns" }
 
 [tasks."release:ko-sign"]
 description = "Sign Ko images with cosign"
 run = """
+VERSION=$(tr -d '\n' < VERSION)
 echo "Signing images for version: ${VERSION}"
 
-cosign sign --yes ghcr.io/markussiebert/homeddns:${VERSION}
-cosign sign --yes ghcr.io/markussiebert/homeddns:latest
+cosign sign --yes ${KO_DOCKER_REPO}:${VERSION}
+cosign sign --yes ${KO_DOCKER_REPO}:latest
 
 echo "✅ Images signed with cosign"
 """
@@ -164,13 +183,13 @@ echo "✅ Images signed with cosign"
 [tasks."release:ko-verify"]
 description = "Verify Ko image signatures"
 run = """
-VERSION=$(cat VERSION | tr -d '\n')
+VERSION=$(tr -d '\n' < VERSION)
 echo "Verifying image signature for version: ${VERSION}"
 
 cosign verify \
-  --certificate-identity-regexp="https://github.com/markussiebert/homeddns" \
+  --certificate-identity-regexp="https://github.com/${REPO_NAME}" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
-  ghcr.io/markussiebert/homeddns:${VERSION}
+  ${KO_DOCKER_REPO}:${VERSION}
 
 echo "✅ Signature verified"
 """
@@ -190,10 +209,10 @@ echo ""
 # Test Ko locally
 echo "Testing Ko (local build)..."
 export KO_DOCKER_REPO=ko.local
-export VERSION=$(cat VERSION | tr -d '\n')
+export VERSION=$(tr -d '\n' < VERSION)
 export BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 export GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
-ko build . --local --bare
+ko build . --local --bare --sbom=none
 echo ""
 
 echo "✅ Dry run complete - ready to release!"
@@ -202,7 +221,7 @@ echo "✅ Dry run complete - ready to release!"
 [tasks."release:check"]
 description = "Verify published release artifacts"
 run = """
-VERSION=$(cat VERSION | tr -d '\n')
+VERSION=$(tr -d '\n' < VERSION)
 echo "Checking release: v${VERSION}"
 echo ""
 
@@ -213,8 +232,8 @@ echo ""
 
 # Check container images
 echo "🐳 Container Images:"
-docker pull ghcr.io/markussiebert/homeddns:${VERSION} && echo "✅ Version tag exists" || echo "❌ Not found"
-docker pull ghcr.io/markussiebert/homeddns:latest && echo "✅ Latest tag exists" || echo "❌ Not found"
+docker pull ${KO_DOCKER_REPO}:${VERSION} && echo "✅ Version tag exists" || echo "❌ Not found"
+docker pull ${KO_DOCKER_REPO}:latest && echo "✅ Latest tag exists" || echo "❌ Not found"
 echo ""
 
 echo "Use 'mise run release:ko-verify' to check signatures"
