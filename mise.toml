@@ -1,4 +1,5 @@
 [tools]
+cosign = "latest"
 go = "1.25.4"
 goreleaser = "2.12.7"
 ko = "0.18.0"
@@ -83,29 +84,142 @@ run = "watchexec -r -e go -- go run main.go server"
 sources = [".env.local"]
 
 # Release tasks
+[tasks."release:validate"]
+description = "Validate release configuration before publishing"
+run = """
+echo "Validating release configuration..."
+goreleaser check
+echo "✅ GoReleaser config is valid"
+"""
+
+[tasks."release:snapshot"]
+description = "Test full release locally without publishing"
+run = """
+echo "Creating snapshot release (no publish)..."
+goreleaser release --snapshot --clean --skip=publish
+echo "✅ Snapshot build successful"
+echo "Check ./dist/ for artifacts"
+"""
+
 [tasks."release:goreleaser"]
 description = "Build and release cross-platform binaries with goreleaser"
 run = "goreleaser release --clean"
 
 [tasks."release:ko"]
-description = "Build and push multi-platform Ko images to GHCR"
+description = "Build and push multi-arch Ko images with auto-detected version"
 run = """
-version=$(cat VERSION | tr -d '\n')
-ko build . --bare --platform=linux/amd64,linux/arm64 --tags ${version},latest
+VERSION=$(cat VERSION | tr -d '\n')
+export VERSION
+export BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+export GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+echo "Building Ko images for version: ${VERSION}"
+ko build . \
+  --bare \
+  --sbom=spdx \
+  --platform=linux/amd64,linux/arm64,linux/arm/v7 \
+  --tags="${VERSION},latest"
+
+echo "✅ Images pushed:"
+echo "  - ghcr.io/markussiebert/homeddns:${VERSION}"
+echo "  - ghcr.io/markussiebert/homeddns:latest"
 """
 env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
 
 [tasks."release:ko-with-version"]
 description = "Build and push Ko images with specific version tag"
 run = """
-if [ -z \"$VERSION_TAG\" ]; then
-  echo \"Error: VERSION_TAG environment variable is required\"
+if [ -z "$VERSION_TAG" ]; then
+  echo "Error: VERSION_TAG environment variable is required"
   exit 1
 fi
-export VERSION=$(echo \"$VERSION_TAG\" | sed 's/^v//')
-ko build . --bare --platform=linux/amd64,linux/arm64 --tags ${VERSION},latest
+export VERSION=$(echo "$VERSION_TAG" | sed 's/^v//')
+export BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+export GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+echo "Building Ko images for version: ${VERSION}"
+ko build . \
+  --bare \
+  --sbom=spdx \
+  --platform=linux/amd64,linux/arm64,linux/arm/v7 \
+  --tags="${VERSION},latest"
+
+echo "✅ Images pushed:"
+echo "  - ghcr.io/markussiebert/homeddns:${VERSION}"
+echo "  - ghcr.io/markussiebert/homeddns:latest"
 """
 env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
+
+[tasks."release:ko-sign"]
+description = "Sign Ko images with cosign"
+run = """
+VERSION=$(cat VERSION | tr -d '\n')
+echo "Signing images for version: ${VERSION}"
+
+cosign sign --yes ghcr.io/markussiebert/homeddns:${VERSION}
+cosign sign --yes ghcr.io/markussiebert/homeddns:latest
+
+echo "✅ Images signed with cosign"
+"""
+
+[tasks."release:ko-verify"]
+description = "Verify Ko image signatures"
+run = """
+VERSION=$(cat VERSION | tr -d '\n')
+echo "Verifying image signature for version: ${VERSION}"
+
+cosign verify \
+  --certificate-identity-regexp="https://github.com/markussiebert/homeddns" \
+  --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+  ghcr.io/markussiebert/homeddns:${VERSION}
+
+echo "✅ Signature verified"
+"""
+
+[tasks."release:dry-run"]
+description = "Dry run: test everything without publishing"
+depends = ["test", "release:validate"]
+run = """
+echo "🧪 DRY RUN: Testing release process..."
+echo ""
+
+# Test GoReleaser
+echo "Testing GoReleaser (snapshot mode)..."
+mise run release:snapshot
+echo ""
+
+# Test Ko locally
+echo "Testing Ko (local build)..."
+export KO_DOCKER_REPO=ko.local
+export VERSION=$(cat VERSION | tr -d '\n')
+export BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+export GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+ko build . --local --bare
+echo ""
+
+echo "✅ Dry run complete - ready to release!"
+"""
+
+[tasks."release:check"]
+description = "Verify published release artifacts"
+run = """
+VERSION=$(cat VERSION | tr -d '\n')
+echo "Checking release: v${VERSION}"
+echo ""
+
+# Check GitHub release
+echo "📋 GitHub Release:"
+gh release view "v${VERSION}" --json tagName,name,publishedAt,assets || echo "❌ Not found"
+echo ""
+
+# Check container images
+echo "🐳 Container Images:"
+docker pull ghcr.io/markussiebert/homeddns:${VERSION} && echo "✅ Version tag exists" || echo "❌ Not found"
+docker pull ghcr.io/markussiebert/homeddns:latest && echo "✅ Latest tag exists" || echo "❌ Not found"
+echo ""
+
+echo "Use 'mise run release:ko-verify' to check signatures"
+"""
 
 [tasks."release:version"]
 description = "Compute next semantic version using svu"

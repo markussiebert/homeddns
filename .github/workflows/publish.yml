@@ -14,6 +14,7 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write  # For cosign keyless signing
 
 jobs:
   publish:
@@ -24,23 +25,90 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
+
       - name: Install mise
         uses: jdx/mise-action@v3
         with:
           version: 2025.11.10
+          experimental: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
       - name: Run tests
         run: mise run test
+
+      - name: Validate release configuration
+        run: mise run release:validate
+
+      - name: Extract version metadata
+        id: meta
+        run: |
+          VERSION="${{ inputs.tag || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "git_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          echo "version_major=${major}" >> "$GITHUB_OUTPUT"
+          echo "version_minor=${minor}" >> "$GITHUB_OUTPUT"
+          echo "version_patch=${patch}" >> "$GITHUB_OUTPUT"
+          
+          echo "Version: $VERSION (major=$major, minor=$minor, patch=$patch)"
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Release binaries with goreleaser
+
+      # GoReleaser: Binaries, archives, checksums, signatures, GitHub release
+      - name: Release binaries with GoReleaser
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise run release:goreleaser
-      - name: Build and push multi-platform Ko images
+
+      # Ko: Container images with SBOM
+      - name: Build and push multi-platform container images with Ko
         env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          BUILD_DATE: ${{ steps.meta.outputs.build_date }}
+          GIT_COMMIT: ${{ steps.meta.outputs.git_commit }}
           VERSION_TAG: ${{ inputs.tag || github.ref_name }}
         run: mise run release:ko-with-version
+
+      # Sign container images with cosign (keyless)
+      - name: Sign container images with cosign
+        run: mise run release:ko-sign
+
+      - name: Release summary
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          echo "## 🎉 Release Complete: v${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts Released" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Binaries (Linux, macOS, Windows, FreeBSD)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Archives (.tar.gz, .zip)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Checksums and signatures" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ SBOMs (SPDX)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Container images (multi-arch, signed)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🐳 Container Images" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/markussiebert/homeddns:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/markussiebert/homeddns:latest" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [GitHub Release](https://github.com/markussiebert/homeddns/releases/tag/v${VERSION})" >> $GITHUB_STEP_SUMMARY
+          echo "- [GHCR Package](https://github.com/markussiebert/homeddns/pkgs/container/homeddns)" >> $GITHUB_STEP_SUMMARY

@@ -2,9 +2,15 @@ version: 2
 
 project_name: homeddns
 
+# Environment setup
+env:
+  - GO111MODULE=on
+
 before:
   hooks:
     - go mod tidy
+    - go mod verify
+    - go test ./...
 
 builds:
   - id: homeddns
@@ -15,37 +21,179 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
+      - freebsd
     goarch:
       - amd64
       - arm64
+      - arm
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: darwin
+        goarch: arm
+      - goos: freebsd
+        goarch: arm
     ldflags:
-      - "-s -w -extldflags=-static -X github.com/markussiebert/homeddns.buildVersion={{ .Version }}"
+      - "-s -w"
+      - "-extldflags=-static"
+      - "-X github.com/markussiebert/homeddns.buildVersion={{ .Version }}"
+      - "-X github.com/markussiebert/homeddns.buildDate={{ .Date }}"
+      - "-X github.com/markussiebert/homeddns.buildCommit={{ .Commit }}"
     flags:
       - -trimpath
+      - -tags=netgo
+    mod_timestamp: "{{ .CommitTimestamp }}"
 
+# Universal binaries for macOS (combine amd64 + arm64)
+universal_binaries:
+  - id: homeddns-macos
+    ids:
+      - homeddns
+    replace: true
+    name_template: "homeddns"
+
+# Archives for distribution
 archives:
   - id: binaries
-    format: tar.gz
-    builds:
-      - homeddns
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    formats:
+      - tar.gz
+      - zip
+    files:
+      - README.md
+      - LICENSE*
+      - .env.local.example
 
+# Checksums
 checksum:
   name_template: "checksums.txt"
   algorithm: sha256
 
+# Generate SBOMs for binaries
+sboms:
+  - id: archive
+    artifacts: archive
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}_sbom.spdx.json"
+
+# Sign checksums with cosign
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--yes"
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+    artifacts: checksum
+    output: true
+
+# Release settings
 release:
   github:
     owner: markussiebert
     name: homeddns
   draft: false
   prerelease: auto
+  mode: replace
+  header: |
+    ## homeddns {{ .Version }}
+    
+    ### 🐳 Container Images
+    
+    Multi-platform images available on GHCR (managed by Ko):
+    ```bash
+    docker pull ghcr.io/markussiebert/homeddns:{{ .Version }}
+    docker pull ghcr.io/markussiebert/homeddns:latest
+    ```
+    
+    Supported platforms: `linux/amd64`, `linux/arm64`, `linux/arm/v7`
+    
+    ### 📦 Installation
+    
+    Download the appropriate archive for your platform below, extract it, and move the binary to your PATH.
+    
+    **Linux/macOS**:
+    ```bash
+    tar xzf homeddns_{{ .Version }}_linux_amd64.tar.gz
+    sudo mv homeddns /usr/local/bin/
+    ```
+    
+    **Windows** (PowerShell):
+    ```powershell
+    Expand-Archive homeddns_{{ .Version }}_windows_amd64.zip
+    Move-Item homeddns.exe C:\Windows\System32\
+    ```
+  footer: |
+    ---
+    
+    ### 🔐 Verifying Releases
+    
+    **Verify checksums**:
+    ```bash
+    sha256sum -c checksums.txt
+    ```
+    
+    **Verify signature with cosign**:
+    ```bash
+    cosign verify-blob \
+      --certificate checksums.txt.pem \
+      --signature checksums.txt.sig \
+      --certificate-identity-regexp="https://github.com/markussiebert/homeddns" \
+      --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+      checksums.txt
+    ```
+    
+    **Verify container images** (signed with cosign):
+    ```bash
+    cosign verify \
+      --certificate-identity-regexp="https://github.com/markussiebert/homeddns" \
+      --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+      ghcr.io/markussiebert/homeddns:{{ .Version }}
+    ```
+    
+    **Full Changelog**: https://github.com/markussiebert/homeddns/compare/{{ .PreviousTag }}...{{ .Tag }}
+  name_template: "v{{ .Version }}"
 
+# Changelog with conventional commits
 changelog:
   use: github
   sort: asc
+  abbrev: 7
+  groups:
+    - title: '🚀 Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: '🐛 Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: '⚡ Performance'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: '📚 Documentation'
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: '🔧 Dependency Updates'
+      regexp: '^.*?(build|deps)(\([[:word:]]+\))??!?:.+$'
+      order: 4
+    - title: '🔨 Other Changes'
+      order: 999
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - typo
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+
+# Close milestone on release
+milestones:
+  - close: true
+    fail_on_error: false
+    name_template: "{{ .Tag }}"

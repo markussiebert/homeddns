@@ -1,10 +1,10 @@
-# Ko configuration for building container images
+# Ko configuration for container images ONLY
 # https://ko.build/configuration/
 
-# Use smallest possible base image (distroless static)
+# Distroless base for minimal attack surface and security
 defaultBaseImage: gcr.io/distroless/static-debian12:nonroot
 
-# Build settings for optimized, minimal binaries
+# Build settings matching GoReleaser optimization
 builds:
   - id: homeddns
     dir: .
@@ -13,9 +13,31 @@ builds:
       - CGO_ENABLED=0
     flags:
       - -trimpath
-      - -tags
-      - netgo
+      - -tags=netgo
     ldflags:
       - -s -w
-      - -extldflags "-static"
+      - -extldflags=-static
       - -X github.com/markussiebert/homeddns.buildVersion={{.Env.VERSION}}
+      - -X github.com/markussiebert/homeddns.buildDate={{.Env.BUILD_DATE}}
+      - -X github.com/markussiebert/homeddns.buildCommit={{.Env.GIT_COMMIT}}
+
+# SBOM generation for supply chain security (SPDX format)
+sboms:
+  - spdx
+
+# Multi-platform support
+platforms:
+  - linux/amd64
+  - linux/arm64
+  - linux/arm/v7
+
+# OCI metadata labels (follows OCI Image Spec)
+# https://github.com/opencontainers/image-spec/blob/main/annotations.md
+labels:
+  org.opencontainers.image.title: homeddns
+  org.opencontainers.image.description: Dynamic DNS update daemon for AWS Route53 and Netcup
+  org.opencontainers.image.vendor: Markus Siebert
+  org.opencontainers.image.licenses: MIT
+  org.opencontainers.image.source: https://github.com/markussiebert/homeddns
+  org.opencontainers.image.url: https://github.com/markussiebert/homeddns
+  org.opencontainers.image.documentation: https://github.com/markussiebert/homeddns/blob/main/README.md

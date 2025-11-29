@@ -14,20 +14,49 @@ permissions:
 
 jobs:
   test-and-build:
-    name: CI Build
+    name: Test & Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Install mise
         uses: jdx/mise-action@v3
         with:
           version: 2025.11.10
+          experimental: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Verify dependencies
+        run: |
+          mise run tidy
+          git diff --exit-code go.mod go.sum
+
       - name: Run tests
         run: mise run test
+
       - name: Build binary
         run: mise run build
+
+      - name: Check binary size
+        run: |
+          ls -lh homeddns
+          size=$(stat -f%z homeddns 2>/dev/null || stat -c%s homeddns)
+          echo "Binary size: $(($size / 1024 / 1024))MB"
+
       - name: Build Ko image locally
         run: mise run build:ko
+
+      - name: Validate GoReleaser config
+        run: mise run release:validate
