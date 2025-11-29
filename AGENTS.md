@@ -37,3 +37,8 @@ All builds use aggressive optimization flags for minimal binary size:
 - **Credential Loading**: Providers load their own credentials (e.g., `LoadNetcupConfig()` checks env vars then `~/.homeddns/netcup_credentials`)
 - **Factory Pattern**: Providers register via `RegisterFactory()` in `init()` functions
 - **No Tests Present**: Add tests when modifying critical logic (especially providers and handlers)
+
+## Reference Documentation
+If you are unsure about build tools or configurations, check the `repomix/` folder:
+- **goreleaser.xml**: Complete documentation for GoReleaser (multi-platform release builds)
+- **ko.xml**: Complete documentation for Ko (containerless Kubernetes image builder)
