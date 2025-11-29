@@ -21,10 +21,6 @@ builds:
       - -X github.com/markussiebert/homeddns.buildDate={{.Env.BUILD_DATE}}
       - -X github.com/markussiebert/homeddns.buildCommit={{.Env.GIT_COMMIT}}
 
-# SBOM generation for supply chain security (SPDX format)
-sboms:
-  - spdx
-
 # Multi-platform support
 platforms:
   - linux/amd64
@@ -41,3 +37,7 @@ labels:
   org.opencontainers.image.source: https://github.com/markussiebert/homeddns
   org.opencontainers.image.url: https://github.com/markussiebert/homeddns
   org.opencontainers.image.documentation: https://github.com/markussiebert/homeddns/blob/main/README.md
+  # Home Assistant add-on labels
+  io.hass.name: "HomeDDNS"
+  io.hass.description: "Self-hosted Dynamic DNS service"
+  io.hass.type: "addon"
