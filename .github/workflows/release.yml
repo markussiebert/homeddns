@@ -38,11 +38,23 @@ jobs:
         run: |
           set -euo pipefail
           bump="${{ github.event.inputs.bump }}"
-          if [ "$bump" = "next" ]; then
-            new_version=$(mise exec -- svu next)
-          else
-            new_version=$(mise exec -- svu $bump)
-          fi
+          case "$bump" in
+            next)
+              new_version=$(mise run release:version)
+              ;;
+            patch)
+              new_version=$(mise run release:version:patch)
+              ;;
+            minor)
+              new_version=$(mise run release:version:minor)
+              ;;
+            major)
+              new_version=$(mise run release:version:major)
+              ;;
+            *)
+              new_version=$(mise run release:version)
+              ;;
+          esac
           echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
           echo "Computed version: $new_version"
       - name: Update VERSION file
@@ -53,7 +65,12 @@ jobs:
           git add VERSION
           git commit -m "chore: bump version to ${{ steps.compute_version.outputs.new_version }}"
           git push origin HEAD
-      - name: Tag release
+      - name: Create and push tag
         run: |
           git tag "${{ steps.compute_version.outputs.new_version }}"
           git push origin "${{ steps.compute_version.outputs.new_version }}"
+      - name: Trigger publish workflow
+        run: |
+          gh workflow run publish.yml -f tag="${{ steps.compute_version.outputs.new_version }}"
+        env:
+          GH_TOKEN: ${{ github.token }}

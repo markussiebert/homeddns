@@ -1,5 +1,6 @@
 [tools]
 go = "1.25.4"
+goreleaser = "2.12.7"
 ko = "0.18.0"
 svu = "3.3.0"
 
@@ -80,3 +81,44 @@ run = "rm -f homeddns homeddns-linux-* cdk-dynamic-dns dyndns *.tar"
 description = "Run in development mode with auto-reload (requires watchexec)"
 run = "watchexec -r -e go -- go run main.go server"
 sources = [".env.local"]
+
+# Release tasks
+[tasks."release:goreleaser"]
+description = "Build and release cross-platform binaries with goreleaser"
+run = "goreleaser release --clean"
+
+[tasks."release:ko"]
+description = "Build and push multi-platform Ko images to GHCR"
+run = """
+version=$(cat VERSION | tr -d '\n')
+ko build . --bare --platform=linux/amd64,linux/arm64 --tags ${version},latest
+"""
+env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
+
+[tasks."release:ko-with-version"]
+description = "Build and push Ko images with specific version tag"
+run = """
+if [ -z \"$VERSION_TAG\" ]; then
+  echo \"Error: VERSION_TAG environment variable is required\"
+  exit 1
+fi
+version=$(echo \"$VERSION_TAG\" | sed 's/^v//')
+ko build . --bare --platform=linux/amd64,linux/arm64 --tags ${version},latest
+"""
+env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
+
+[tasks."release:version"]
+description = "Compute next semantic version using svu"
+run = "svu next"
+
+[tasks."release:version:patch"]
+description = "Compute next patch version"
+run = "svu patch"
+
+[tasks."release:version:minor"]
+description = "Compute next minor version"
+run = "svu minor"
+
+[tasks."release:version:major"]
+description = "Compute next major version"
+run = "svu major"
