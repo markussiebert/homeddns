@@ -14,6 +14,7 @@ REPO_NAME = "markussiebert/homeddns"
 
 [tasks.build]
 description = "Build homeddns binary for current platform"
+depends = ["fmt", "tidy"]
 run = """
 VERSION=$(tr -d '\n' < VERSION)
 go build -trimpath -ldflags="-s -w -extldflags=-static -X github.com/${REPO_NAME}.buildVersion=${VERSION}" -o homeddns .
@@ -21,6 +22,7 @@ go build -trimpath -ldflags="-s -w -extldflags=-static -X github.com/${REPO_NAME
 
 [tasks."build:linux"]
 description = "Build homeddns binary for Linux AMD64 (optimized)"
+depends = ["fmt", "tidy"]
 run = """
 VERSION=$(tr -d '\n' < VERSION)
 go build -trimpath -ldflags="-s -w -extldflags=-static -X github.com/${REPO_NAME}.buildVersion=${VERSION}" -tags netgo -installsuffix netgo -o homeddns-linux-amd64 .
@@ -29,6 +31,7 @@ env = { GOOS = "linux", GOARCH = "amd64" }
 
 [tasks."build:linux-arm"]
 description = "Build homeddns binary for Linux ARM64 (optimized)"
+depends = ["fmt", "tidy"]
 run = """
 VERSION=$(tr -d '\n' < VERSION)
 go build -trimpath -ldflags="-s -w -extldflags=-static -X github.com/${REPO_NAME}.buildVersion=${VERSION}" -tags netgo -installsuffix netgo -o homeddns-linux-arm64 .
@@ -37,6 +40,7 @@ env = { GOOS = "linux", GOARCH = "arm64" }
 
 [tasks."build:ko"]
 description = "Build container image with Ko (local)"
+depends = ["test"]
 run = """
 VERSION=$(tr -d '\n' < VERSION)
 ko build . --local --bare --sbom=none
@@ -45,6 +49,7 @@ env = { KO_DOCKER_REPO = "ko.local" }
 
 [tasks."build:ko-push"]
 description = "Build and push container image with Ko (single platform)"
+depends = ["test"]
 run = """
 VERSION=$(tr -d '\n' < VERSION)
 ko build . --bare --sbom=none --tags="${VERSION},latest"
@@ -52,6 +57,7 @@ ko build . --bare --sbom=none --tags="${VERSION},latest"
 
 [tasks."build:ko-multiplatform"]
 description = "Build multi-platform container image with Ko"
+depends = ["test"]
 run = """
 VERSION=$(tr -d '\n' < VERSION)
 ko build . --bare --sbom=none --platform=linux/amd64,linux/arm64,linux/arm/v7 --tags="${VERSION},latest"
@@ -114,6 +120,7 @@ echo "✅ GoReleaser config is valid"
 
 [tasks."release:snapshot"]
 description = "Test full release locally without publishing"
+depends = ["test", "release:validate"]
 run = """
 echo "Creating snapshot release (no publish)..."
 goreleaser release --snapshot --clean --skip=publish,sign
@@ -123,10 +130,12 @@ echo "Check ./dist/ for artifacts"
 
 [tasks."release:goreleaser"]
 description = "Build and release cross-platform binaries with goreleaser"
+depends = ["test", "release:validate"]
 run = "goreleaser release --clean"
 
 [tasks."release:ko"]
 description = "Build and push multi-arch Ko images with auto-detected version"
+depends = ["test"]
 run = """
 VERSION=$(tr -d '\n' < VERSION)
 export VERSION
@@ -147,6 +156,7 @@ echo "  - ${KO_DOCKER_REPO}:latest"
 
 [tasks."release:ko-with-version"]
 description = "Build and push Ko images with specific version tag (for CI)"
+depends = ["test"]
 run = """
 if [ -z "$VERSION_TAG" ]; then
   echo "Error: VERSION_TAG environment variable is required"
