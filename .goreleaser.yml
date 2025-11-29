@@ -77,7 +77,7 @@ sboms:
   - id: archive
     artifacts: archive
     documents:
-      - "{{ .ProjectName }}_{{ .Version }}_sbom.spdx.json"
+      - "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}_sbom.spdx.json"
 
 # Sign checksums with cosign (only in CI with OIDC)
 signs:
