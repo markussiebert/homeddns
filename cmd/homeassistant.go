@@ -4,25 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
-// HomeAssistantOptions represents the Home Assistant add-on options.json structure
-type HomeAssistantOptions struct {
-	AuthUsername       string `json:"auth_username"`
-	AuthPasswordHash   string `json:"auth_password_hash"`
-	DNSProvider        string `json:"dns_provider"`
-	Domain             string `json:"domain"`
-	DNSTTL             int    `json:"dns_ttl"`
-	Port               int    `json:"port"`
-	NetcupCustomerNum  string `json:"netcup_customer_number"`
-	NetcupAPIKey       string `json:"netcup_api_key"`
-	NetcupAPIPassword  string `json:"netcup_api_password"`
-	AWSAccessKeyID     string `json:"aws_access_key_id"`
-	AWSSecretAccessKey string `json:"aws_secret_access_key"`
-	AWSRegion          string `json:"aws_region"`
-}
-
-// LoadHomeAssistantConfig loads configuration from the add-on options file when running under Supervisor
+// LoadHomeAssistantConfig reads Supervisor's add-on options and converts them into environment variables.
 func LoadHomeAssistantConfig() (*Config, error) {
 	optionsPath := os.Getenv("ADDON_OPTIONS_PATH")
 	if optionsPath == "" {
@@ -42,55 +27,36 @@ func LoadHomeAssistantConfig() (*Config, error) {
 
 	data, err := os.ReadFile(optionsPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read options.json: %w", err)
+		return nil, fmt.Errorf("failed to read options file %s: %w", optionsPath, err)
 	}
 
-	var opts HomeAssistantOptions
-	if err := json.Unmarshal(data, &opts); err != nil {
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("failed to parse options.json: %w", err)
 	}
 
-	// Map Home Assistant options to environment variables
-	// This allows the rest of the code to work unchanged
-	if opts.AuthUsername != "" {
-		os.Setenv("AUTH_USERNAME", opts.AuthUsername)
-	}
-	if opts.AuthPasswordHash != "" {
-		os.Setenv("AUTH_PASSWORD_HASH", opts.AuthPasswordHash)
-	}
-	if opts.DNSProvider != "" {
-		os.Setenv("DNS_PROVIDER", opts.DNSProvider)
-	}
-	if opts.Domain != "" {
-		os.Setenv("DOMAIN", opts.Domain)
-	}
-	if opts.DNSTTL > 0 {
-		os.Setenv("DNS_TTL", fmt.Sprintf("%d", opts.DNSTTL))
-	}
-	if opts.Port > 0 {
-		os.Setenv("PORT", fmt.Sprintf("%d", opts.Port))
-	}
-
-	// Provider-specific credentials
-	if opts.NetcupCustomerNum != "" {
-		os.Setenv("NETCUP_CUSTOMER_NUMBER", opts.NetcupCustomerNum)
-	}
-	if opts.NetcupAPIKey != "" {
-		os.Setenv("NETCUP_API_KEY", opts.NetcupAPIKey)
-	}
-	if opts.NetcupAPIPassword != "" {
-		os.Setenv("NETCUP_API_PASSWORD", opts.NetcupAPIPassword)
-	}
-	if opts.AWSAccessKeyID != "" {
-		os.Setenv("AWS_ACCESS_KEY_ID", opts.AWSAccessKeyID)
-	}
-	if opts.AWSSecretAccessKey != "" {
-		os.Setenv("AWS_SECRET_ACCESS_KEY", opts.AWSSecretAccessKey)
-	}
-	if opts.AWSRegion != "" {
-		os.Setenv("AWS_REGION", opts.AWSRegion)
+	for key, value := range raw {
+		envKey := strings.ToUpper(strings.ReplaceAll(key, " ", "_"))
+		if envKey == "" {
+			continue
+		}
+		var envValue string
+		switch v := value.(type) {
+		case string:
+			envValue = v
+		case float64:
+			envValue = fmt.Sprintf("%v", v)
+		case bool:
+			envValue = fmt.Sprintf("%t", v)
+		default:
+			envValue = fmt.Sprintf("%v", v)
+		}
+		if envValue == "" {
+			continue
+		}
+		os.Setenv(envKey, envValue)
 	}
 
-	// Now load config normally from environment variables
+	// Fallback to zero when no file was written
 	return LoadConfig()
 }
