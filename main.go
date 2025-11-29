@@ -20,6 +20,8 @@ type CLI struct {
 		Type     string `help:"Record type (A or AAAA)." default:"A" enum:"A,AAAA"`
 	} `cmd:"" help:"Update a DNS record with the current public IP."`
 
+	HashPassword struct{} `cmd:"" help:"Generate bcrypt hash from stdin password."`
+
 	Version struct{} `cmd:"" help:"Print the current version."`
 
 	ListProviders bool `help:"List available DNS providers."`
@@ -52,6 +54,12 @@ func main() {
 
 	if ctx.Command() == "version" {
 		fmt.Println(versionString())
+		return
+	}
+
+	if ctx.Command() == "hash-password" {
+		err := cmd.RunHashPassword()
+		ctx.FatalIfErrorf(err)
 		return
 	}
 

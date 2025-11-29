@@ -1,0 +1,57 @@
+name: "HomeDDNS - Dynamic DNS Updater"
+description: "Self-hosted Dynamic DNS service with support for Netcup and AWS Route53"
+version: "0.1.0"
+slug: "homeddns"
+init: false
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+url: "https://github.com/markussiebert/homeddns"
+startup: services
+boot: auto
+ports:
+  8080/tcp: 8080
+ports_description:
+  8080/tcp: "HTTP API port for DynDNS updates (can be disabled if using Ingress)"
+ingress: true
+ingress_port: 8080
+panel_icon: mdi:dns
+panel_title: "HomeDDNS"
+panel_admin: true
+homeassistant_api: false
+hassio_api: false
+host_network: false
+options:
+  auth_username: "dyndns"
+  auth_password_hash: ""
+  dns_provider: "netcup_ccp"
+  domain: ""
+  dns_ttl: 60
+  port: 8080
+  # Netcup settings
+  netcup_customer_number: ""
+  netcup_api_key: ""
+  netcup_api_password: ""
+  # AWS Route53 settings (optional)
+  aws_access_key_id: ""
+  aws_secret_access_key: ""
+  aws_region: "us-east-1"
+schema:
+  auth_username: str
+  auth_password_hash: password
+  dns_provider: list(netcup_ccp|route53)
+  domain: str
+  dns_ttl: int(30,86400)
+  port: int(1024,65535)
+  # Netcup settings
+  netcup_customer_number: str?
+  netcup_api_key: password?
+  netcup_api_password: password?
+  # AWS Route53 settings
+  aws_access_key_id: password?
+  aws_secret_access_key: password?
+  aws_region: str?
+image: "ghcr.io/markussiebert/homeddns"

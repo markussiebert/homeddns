@@ -1,0 +1,40 @@
+configuration:
+  auth_username:
+    name: "Username"
+    description: "Username for Basic Authentication (used by DynDNS clients)"
+  auth_password_hash:
+    name: "Password Hash"
+    description: "Bcrypt hash of your password. Generate with: docker run --rm -i ghcr.io/markussiebert/homeddns:latest hash-password"
+  dns_provider:
+    name: "DNS Provider"
+    description: "Choose your DNS hosting provider"
+  domain:
+    name: "Domain"
+    description: "Your domain name (e.g., example.com)"
+  dns_ttl:
+    name: "DNS TTL"
+    description: "DNS record Time-To-Live in seconds (lower = faster updates, higher = less DNS queries)"
+  port:
+    name: "Port"
+    description: "HTTP server port (only needed if not using Ingress)"
+  netcup_customer_number:
+    name: "Netcup Customer Number"
+    description: "Your Netcup customer number (found in CCP account overview)"
+  netcup_api_key:
+    name: "Netcup API Key"
+    description: "API Key generated in Netcup CCP (Stammdaten → API)"
+  netcup_api_password:
+    name: "Netcup API Password"
+    description: "API Password generated in Netcup CCP"
+  aws_access_key_id:
+    name: "AWS Access Key ID"
+    description: "AWS IAM user access key ID (optional if using IAM roles)"
+  aws_secret_access_key:
+    name: "AWS Secret Access Key"
+    description: "AWS IAM user secret access key"
+  aws_region:
+    name: "AWS Region"
+    description: "AWS region where your Route53 hosted zone is located"
+
+network:
+  8080/tcp: "HTTP API port for DynDNS updates (can be disabled if using Ingress)"
