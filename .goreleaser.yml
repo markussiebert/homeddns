@@ -87,6 +87,7 @@ signs:
     args:
       - sign-blob
       - "--yes"
+      - "--bundle=${artifact}.bundle"
       - "--output-certificate=${certificate}"
       - "--output-signature=${signature}"
       - "${artifact}"
