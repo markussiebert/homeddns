@@ -90,11 +90,9 @@ signs:
       - "--output-certificate=${certificate}"
       - "--output-signature=${signature}"
       - "${artifact}"
-    artifacts: checksum
-    output: true
-    # Skip signing in snapshot mode (local testing)
-    ids:
+    artifacts:
       - checksum
+    output: true
 
 # Release settings
 release:
