@@ -90,8 +90,7 @@ signs:
       - "--output-certificate=${certificate}"
       - "--output-signature=${signature}"
       - "${artifact}"
-    artifacts:
-      - checksum
+    artifacts: checksum
     output: true
 
 # Release settings
