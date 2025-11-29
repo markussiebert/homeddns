@@ -88,6 +88,8 @@ jobs:
 
       # Sign container images with cosign (keyless)
       - name: Sign container images with cosign
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
         run: mise run release:ko-sign
 
       - name: Release summary

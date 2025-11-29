@@ -153,7 +153,6 @@ env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
 [tasks."release:ko-sign"]
 description = "Sign Ko images with cosign"
 run = """
-VERSION=$(cat VERSION | tr -d '\n')
 echo "Signing images for version: ${VERSION}"
 
 cosign sign --yes ghcr.io/markussiebert/homeddns:${VERSION}
