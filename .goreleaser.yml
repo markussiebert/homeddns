@@ -78,20 +78,11 @@ checksum:
 #   - id: archive
 #     artifacts: archive
 
-# Sign checksums with cosign (only in CI with OIDC)
-signs:
-  - cmd: cosign
-    certificate: "${artifact}.pem"
-    signature: "${artifact}.sig"
-    args:
-      - sign-blob
-      - "--yes"
-      - "--bundle=${artifact}.bundle"
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
-      - "${artifact}"
-    artifacts: checksum
-    output: true
+# Signing disabled for now - cosign keyless signing requires additional setup
+# Container images are still signed via Ko + cosign in the publish workflow
+# signs:
+#   - cmd: cosign
+#     artifacts: checksum
 
 # Release settings
 release:
