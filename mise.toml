@@ -102,8 +102,8 @@ if [ -z \"$VERSION_TAG\" ]; then
   echo \"Error: VERSION_TAG environment variable is required\"
   exit 1
 fi
-version=$(echo \"$VERSION_TAG\" | sed 's/^v//')
-ko build . --bare --platform=linux/amd64,linux/arm64 --tags ${version},latest
+export VERSION=$(echo \"$VERSION_TAG\" | sed 's/^v//')
+ko build . --bare --platform=linux/amd64,linux/arm64 --tags ${VERSION},latest
 """
 env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
 
