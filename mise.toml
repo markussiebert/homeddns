@@ -124,7 +124,7 @@ echo "✅ Images pushed:"
 echo "  - ghcr.io/markussiebert/homeddns:${VERSION}"
 echo "  - ghcr.io/markussiebert/homeddns:latest"
 """
-env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
+env = { KO_DOCKER_REPO = "ghcr.io/markussiebert/homeddns" }
 
 [tasks."release:ko-with-version"]
 description = "Build and push Ko images with specific version tag"
@@ -148,7 +148,7 @@ echo "✅ Images pushed:"
 echo "  - ghcr.io/markussiebert/homeddns:${VERSION}"
 echo "  - ghcr.io/markussiebert/homeddns:latest"
 """
-env = { KO_DOCKER_REPO = "ghcr.io/markussiebert" }
+env = { KO_DOCKER_REPO = "ghcr.io/markussiebert/homeddns" }
 
 [tasks."release:ko-sign"]
 description = "Sign Ko images with cosign"
