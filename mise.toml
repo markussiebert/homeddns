@@ -198,6 +198,7 @@ echo "  - ${KO_DOCKER_REPO}:latest"
 
 [tasks."release:ko-sign"]
 description = "Sign Ko images with cosign"
+depends = ["release:ko-with-version"]
 run = """
 VERSION=$(tr -d '\n' < VERSION)
 echo "Signing images for version: ${VERSION}"
