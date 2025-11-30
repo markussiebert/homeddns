@@ -250,17 +250,33 @@ echo "Use 'mise run release:ko-verify' to check signatures"
 """
 
 [tasks."release:version"]
-description = "Compute next semantic version using svu"
-run = "svu next"
+description = "Compute next semantic version using svu and update Home Assistant config"
+run = """
+VERSION=$(svu next)
+echo "$VERSION" > VERSION
+./scripts/update-ha-version.sh "$VERSION"
+"""
 
 [tasks."release:version:patch"]
-description = "Compute next patch version"
-run = "svu patch"
+description = "Compute next patch version and update Home Assistant config"
+run = """
+VERSION=$(svu patch)
+echo "$VERSION" > VERSION
+./scripts/update-ha-version.sh "$VERSION"
+"""
 
 [tasks."release:version:minor"]
-description = "Compute next minor version"
-run = "svu minor"
+description = "Compute next minor version and update Home Assistant config"
+run = """
+VERSION=$(svu minor)
+echo "$VERSION" > VERSION
+./scripts/update-ha-version.sh "$VERSION"
+"""
 
 [tasks."release:version:major"]
-description = "Compute next major version"
-run = "svu major"
+description = "Compute next major version and update Home Assistant config"
+run = """
+VERSION=$(svu major)
+echo "$VERSION" > VERSION
+./scripts/update-ha-version.sh "$VERSION"
+"""
