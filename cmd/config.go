@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -17,7 +18,44 @@ type Config struct {
 	DefaultTTL   int
 }
 
+func LoadHomeAssistantConfig() error {
+	optionsPath := os.Getenv("ADDON_OPTIONS_PATH")
+	if optionsPath == "" {
+		return nil
+	}
+
+	info, err := os.Stat(optionsPath)
+	if err != nil {
+		return fmt.Errorf("failed to stat options file %s: %w", optionsPath, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("options path %s is a directory", optionsPath)
+	}
+
+	data, err := os.ReadFile(optionsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read options file %s: %w", optionsPath, err)
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("failed to parse options.json: %w", err)
+	}
+
+	for key, value := range raw {
+		envKey := strings.ToUpper(strings.ReplaceAll(key, " ", "_"))
+		if envKey == "" {
+			continue
+		}
+		os.Setenv(envKey, fmt.Sprintf("%v", value))
+	}
+	return nil
+}
+
 func LoadConfig() (*Config, error) {
+
+	LoadHomeAssistantConfig()
+
 	config := &Config{
 		Port:       8080,
 		DefaultTTL: 60,
