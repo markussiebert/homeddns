@@ -272,7 +272,9 @@ echo "Use 'mise run release:ko-verify' to check signatures"
 description = "Compute next semantic version using svu and update Home Assistant config"
 run = """
 VERSION=$(svu next)
-echo "$VERSION" > VERSION
+VERSION_NO_V=${VERSION#v}
+echo "$VERSION_NO_V" > VERSION
+export VERSION=$VERSION_NO_V
 yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 echo "$VERSION"
 """
@@ -282,7 +284,9 @@ echo "$VERSION"
 description = "Compute next patch version and update Home Assistant config"
 run = """
 VERSION=$(svu patch)
-echo "$VERSION" > VERSION
+VERSION_NO_V=${VERSION#v}
+echo "$VERSION_NO_V" > VERSION
+export VERSION=$VERSION_NO_V
 yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 echo "$VERSION"
 """
@@ -292,7 +296,9 @@ echo "$VERSION"
 description = "Compute next minor version and update Home Assistant config"
 run = """
 VERSION=$(svu minor)
-echo "$VERSION" > VERSION
+VERSION_NO_V=${VERSION#v}
+echo "$VERSION_NO_V" > VERSION
+export VERSION=$VERSION_NO_V
 yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 echo "$VERSION"
 """
@@ -302,7 +308,9 @@ echo "$VERSION"
 description = "Compute next major version and update Home Assistant config"
 run = """
 VERSION=$(svu major)
-echo "$VERSION" > VERSION
+VERSION_NO_V=${VERSION#v}
+echo "$VERSION_NO_V" > VERSION
+export VERSION=$VERSION_NO_V
 yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 echo "$VERSION"
 """
@@ -333,55 +341,58 @@ run = """
 # Determine version bump type from environment variable (default: next)
 BUMP="${RELEASE_BUMP:-next}"
 
-# Compute version based on bump type
+# Compute version based on bump type (svu returns vX.Y.Z)
 case "$BUMP" in
   patch)
-    VERSION=$(svu patch)
+    VERSION_WITH_V=$(svu patch)
     ;;
   minor)
-    VERSION=$(svu minor)
+    VERSION_WITH_V=$(svu minor)
     ;;
   major)
-    VERSION=$(svu major)
+    VERSION_WITH_V=$(svu major)
     ;;
   *)
-    VERSION=$(svu next)
+    VERSION_WITH_V=$(svu next)
     ;;
 esac
 
-echo "📦 Computed version: $VERSION"
+# Strip 'v' prefix for VERSION file and Home Assistant config
+VERSION_NO_V=${VERSION_WITH_V#v}
 
-# Update VERSION file and Home Assistant config
-echo "$VERSION" > VERSION
-export VERSION
+echo "📦 Computed version: $VERSION_WITH_V (stored as $VERSION_NO_V)"
+
+# Update VERSION file and Home Assistant config (without 'v' prefix)
+echo "$VERSION_NO_V" > VERSION
+export VERSION=$VERSION_NO_V
 yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 
 # Commit version changes
 git config user.name "github-actions[bot]"
 git config user.email "github-actions[bot]@users.noreply.github.com"
 git add VERSION homeassistant/config.yaml
-git diff --staged --quiet || git commit -m "chore: bump version to $VERSION"
+git diff --staged --quiet || git commit -m "chore: bump version to $VERSION_WITH_V"
 
 # Push changes
 git push origin HEAD
 
-# Create and push tag
-git tag "$VERSION"
-git push origin "$VERSION"
+# Create and push tag (with 'v' prefix)
+git tag "$VERSION_WITH_V"
+git push origin "$VERSION_WITH_V"
 
-# Trigger publish workflow
+# Trigger publish workflow (with 'v' prefix)
 echo ""
-echo "🚀 Triggering publish workflow for $VERSION..."
-gh workflow run publish.yml -f tag="$VERSION"
+echo "🚀 Triggering publish workflow for $VERSION_WITH_V..."
+gh workflow run publish.yml -f tag="$VERSION_WITH_V"
 
 # Wait a moment for the workflow to start
 sleep 2
 
 echo ""
-echo "✅ Release $VERSION completed successfully"
+echo "✅ Release $VERSION_WITH_V completed successfully"
 echo ""
 echo "Next steps:"
 echo "  - Monitor the publish workflow: gh run list --workflow=publish.yml"
-echo "  - Check GitHub releases page: https://github.com/${REPO_NAME}/releases/tag/$VERSION"
+echo "  - Check GitHub releases page: https://github.com/${REPO_NAME}/releases/tag/$VERSION_WITH_V"
 """
 
