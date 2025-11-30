@@ -43,7 +43,9 @@ env = { GOOS = "linux", GOARCH = "arm64" }
 description = "Build container image with Ko (local)"
 depends = ["test"]
 run = """
-VERSION=$(tr -d '\n' < VERSION)
+export VERSION=$(tr -d '\n' < VERSION)
+export BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+export GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 ko build . --local --bare --sbom=none
 """
 env = { KO_DOCKER_REPO = "ko.local" }
