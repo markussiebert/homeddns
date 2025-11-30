@@ -208,19 +208,44 @@ func LoadConfig() (*Config, error) {
 	// Certificate files (only relevant if SSL is enabled)
 	if certFile := os.Getenv("CERTFILE"); certFile != "" {
 		logger.Debug("Reading CERTFILE from env: %s", certFile)
-		config.CertFile = certFile
+		// Prepend /ssl/ if path is relative
+		if !strings.HasPrefix(certFile, "/") {
+			config.CertFile = "/ssl/" + certFile
+			logger.Debug("Converted relative path to: %s", config.CertFile)
+		} else {
+			config.CertFile = certFile
+		}
 	} else {
 		config.CertFile = "/ssl/fullchain.pem" // Home Assistant default
 	}
 
 	if keyFile := os.Getenv("KEYFILE"); keyFile != "" {
 		logger.Debug("Reading KEYFILE from env: %s", keyFile)
-		config.KeyFile = keyFile
+		// Prepend /ssl/ if path is relative
+		if !strings.HasPrefix(keyFile, "/") {
+			config.KeyFile = "/ssl/" + keyFile
+			logger.Debug("Converted relative path to: %s", config.KeyFile)
+		} else {
+			config.KeyFile = keyFile
+		}
 	} else {
 		config.KeyFile = "/ssl/privkey.pem" // Home Assistant default
 	}
 
 	logger.Debug("SSL config: enabled=%v, certfile=%s, keyfile=%s", config.SSL, config.CertFile, config.KeyFile)
+
+	// Validate SSL certificate files exist if SSL is enabled
+	if config.SSL {
+		if _, err := os.Stat(config.CertFile); err != nil {
+			logger.Error("SSL certificate file not found: %s (error: %v)", config.CertFile, err)
+			return nil, fmt.Errorf("SSL certificate file not found: %s", config.CertFile)
+		}
+		if _, err := os.Stat(config.KeyFile); err != nil {
+			logger.Error("SSL key file not found: %s (error: %v)", config.KeyFile, err)
+			return nil, fmt.Errorf("SSL key file not found: %s", config.KeyFile)
+		}
+		logger.Info("SSL certificate files validated successfully")
+	}
 
 	logger.Info("Configuration loaded successfully: provider=%s, domain=%s, port=%d, ttl=%d, ssl=%v",
 		config.Provider, config.Domain, config.Port, config.DefaultTTL, config.SSL)
