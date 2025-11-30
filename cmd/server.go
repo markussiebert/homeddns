@@ -40,11 +40,16 @@ func RunServer(port int, config *Config) error {
 	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/", authMiddleware(dyndnsHandler))
+	// Health check endpoint (no auth required)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK\n"))
 	})
+	// DynDNS standard format: /nic/update?hostname=...
+	mux.Handle("/nic/update", authMiddleware(dyndnsHandler))
+	// DynDNS UniFi format: /hostname
+	// Use {hostname...} to match any path (wildcard in Go 1.22+)
+	mux.Handle("/{hostname...}", authMiddleware(dyndnsHandler))
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
