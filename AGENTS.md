@@ -57,6 +57,8 @@ The project uses a **Ko-first** strategy with clean separation of concerns:
 - **GoReleaser**: Handles binaries, archives, checksums, signatures → GitHub Releases
 
 ### Release Commands
+- **Full Release**: `mise run release` - Complete release workflow (version, tag, push)
+  - Set `RELEASE_BUMP=patch|minor|major|next` environment variable
 - **Validate Config**: `mise run release:validate` - Check goreleaser config
 - **Dry Run**: `mise run release:dry-run` - Test full release locally
 - **Snapshot**: `mise run release:snapshot` - Build without publishing

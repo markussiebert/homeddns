@@ -28,54 +28,25 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
+
       - name: Install mise
         uses: jdx/mise-action@v3
         with:
           version: 2025.11.10
-      - name: Run tests
-        run: mise run test
-      - id: compute_version
-        name: Compute next version with svu
-        run: |
-          set -euo pipefail
-          bump="${{ github.event.inputs.bump }}"
-          case "$bump" in
-            next)
-              new_version=$(mise run release:version)
-              ;;
-            patch)
-              new_version=$(mise run release:version:patch)
-              ;;
-            minor)
-              new_version=$(mise run release:version:minor)
-              ;;
-            major)
-              new_version=$(mise run release:version:major)
-              ;;
-            *)
-              new_version=$(mise run release:version)
-              ;;
-          esac
-          echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
-          echo "Computed version: $new_version"
-      - name: Update VERSION file
-        run: |
-          echo "${{ steps.compute_version.outputs.new_version }}" | sed 's/^v//' > VERSION
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION
-          git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.compute_version.outputs.new_version }}"
-          git push origin HEAD
-      - name: Create and push tag
-        run: |
-          git tag "${{ steps.compute_version.outputs.new_version }}"
-          git push origin "${{ steps.compute_version.outputs.new_version }}"
+          experimental: true
+
+      - name: Run release workflow
+        run: mise run release
+        env:
+          RELEASE_BUMP: ${{ github.event.inputs.bump }}
+
       - name: Release summary
         run: |
-          echo "## 🎉 Version ${{ steps.compute_version.outputs.new_version }} tagged successfully" >> $GITHUB_STEP_SUMMARY
+          VERSION=$(cat VERSION)
+          echo "## 🎉 Version $VERSION tagged successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The publish workflow will automatically start when the tag is detected." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔗 Links" >> $GITHUB_STEP_SUMMARY
           echo "- [Monitor Publish Workflow](https://github.com/${{ github.repository }}/actions/workflows/publish.yml)" >> $GITHUB_STEP_SUMMARY
-          echo "- [View Tag](https://github.com/${{ github.repository }}/releases/tag/${{ steps.compute_version.outputs.new_version }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Tag](https://github.com/${{ github.repository }}/releases/tag/$VERSION)" >> $GITHUB_STEP_SUMMARY

@@ -274,6 +274,7 @@ run = """
 VERSION=$(svu next)
 echo "$VERSION" > VERSION
 yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
+echo "$VERSION"
 """
 
 
@@ -283,6 +284,7 @@ run = """
 VERSION=$(svu patch)
 echo "$VERSION" > VERSION
 yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
+echo "$VERSION"
 """
 
 
@@ -292,6 +294,7 @@ run = """
 VERSION=$(svu minor)
 echo "$VERSION" > VERSION
 yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
+echo "$VERSION"
 """
 
 
@@ -301,5 +304,59 @@ run = """
 VERSION=$(svu major)
 echo "$VERSION" > VERSION
 yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
+echo "$VERSION"
+"""
+
+# Complete release workflow task
+[tasks.release]
+description = "Complete release workflow: version, tag, and trigger publish"
+run = """
+set -euo pipefail
+
+# Determine version bump type from environment variable (default: next)
+BUMP="${RELEASE_BUMP:-next}"
+
+# Compute version based on bump type
+case "$BUMP" in
+  patch)
+    VERSION=$(svu patch)
+    ;;
+  minor)
+    VERSION=$(svu minor)
+    ;;
+  major)
+    VERSION=$(svu major)
+    ;;
+  *)
+    VERSION=$(svu next)
+    ;;
+esac
+
+echo "📦 Computed version: $VERSION"
+
+# Update VERSION file and Home Assistant config
+echo "$VERSION" > VERSION
+export VERSION
+yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
+
+# Commit version changes
+git config user.name "github-actions[bot]"
+git config user.email "github-actions[bot]@users.noreply.github.com"
+git add VERSION homeassistant/config.yaml
+git diff --staged --quiet || git commit -m "chore: bump version to $VERSION"
+
+# Push changes
+git push origin HEAD
+
+# Create and push tag
+git tag "$VERSION"
+git push origin "$VERSION"
+
+echo ""
+echo "✅ Release $VERSION completed successfully"
+echo ""
+echo "Next steps:"
+echo "  - Monitor the publish workflow"
+echo "  - Check GitHub releases page"
 """
 
