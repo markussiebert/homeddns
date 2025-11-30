@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/markussiebert/homeddns/internal/auth"
 	"github.com/markussiebert/homeddns/internal/handler"
+	"github.com/markussiebert/homeddns/internal/logger"
 	"github.com/markussiebert/homeddns/internal/provider"
 )
 
@@ -27,7 +27,7 @@ func RunServer(port int, config *Config) error {
 		return fmt.Errorf("failed to create provider: %w", err)
 	}
 
-	log.Printf("Using DNS provider: %s", p.Name())
+	logger.Info("Using DNS provider: %s", p.Name())
 
 	dyndnsHandler := handler.NewDynDNSHandler(handler.Config{
 		Provider:   p,
@@ -55,9 +55,10 @@ func RunServer(port int, config *Config) error {
 	}
 
 	go func() {
-		log.Printf("Starting DynDNS server on port %d", port)
+		logger.Info("Starting DynDNS server on port %d", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			logger.Error("Server error: %v", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -65,19 +66,19 @@ func RunServer(port int, config *Config) error {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
 
-	log.Println("Shutting down server...")
+	logger.Info("Shutting down server...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := p.Close(shutdownCtx); err != nil {
-		log.Printf("Warning: error closing provider: %v", err)
+		logger.Warn("Error closing provider: %v", err)
 	}
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
-	log.Println("Server stopped")
+	logger.Info("Server stopped")
 	return nil
 }

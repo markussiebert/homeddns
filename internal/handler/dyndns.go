@@ -3,13 +3,13 @@ package handler
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/markussiebert/homeddns/internal/logger"
 	"github.com/markussiebert/homeddns/internal/provider"
 )
 
@@ -34,48 +34,64 @@ func NewDynDNSHandler(config Config) *DynDNSHandler {
 
 // ServeHTTP handles HTTP requests
 func (h *DynDNSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logger.Debug("Received %s request: %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+	logger.Debug("Query params: %s", r.URL.RawQuery)
+
 	// Only allow GET requests
 	if r.Method != http.MethodGet {
+		logger.Warn("Method not allowed: %s from %s", r.Method, r.RemoteAddr)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	// Determine format based on path
 	isStandardFormat := strings.HasPrefix(r.URL.Path, "/nic/update")
+	logger.Debug("Using %s format", map[bool]string{true: "standard", false: "UniFi"}[isStandardFormat])
 
 	// Extract hostname
 	hostname := h.extractHostname(r)
 	if hostname == "" {
+		logger.Warn("No valid hostname found in request from %s", r.RemoteAddr)
 		h.respond(w, "notfqdn", "", isStandardFormat)
 		return
 	}
 
+	logger.Debug("Extracted hostname: %s", hostname)
+
 	// Validate and parse hostname
 	hostname = h.normalizeHostname(hostname)
+	logger.Debug("Normalized hostname: %s", hostname)
+
 	domain, subdomain := h.splitHostname(hostname)
 	if domain == "" {
+		logger.Error("Failed to split hostname '%s' into domain and subdomain", hostname)
 		h.respond(w, "notfqdn", "", isStandardFormat)
 		return
 	}
+	logger.Debug("Split hostname: domain=%s, subdomain=%s", domain, subdomain)
 
 	// Get IP address
 	ipAddress := h.extractIP(r)
 	if ipAddress == "" {
+		logger.Error("Failed to extract valid IP address from request")
 		h.respond(w, "911", "", isStandardFormat)
 		return
 	}
+	logger.Debug("Extracted IP address: %s", ipAddress)
 
 	// Update DNS record
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
+	logger.Debug("Updating DNS: hostname=%s, domain=%s, subdomain=%s, ip=%s", hostname, domain, subdomain, ipAddress)
+
 	if err := h.updateDNS(ctx, domain, subdomain, ipAddress); err != nil {
-		log.Printf("Error updating DNS for %s: %v", hostname, err)
+		logger.Error("Error updating DNS for %s: %v", hostname, err)
 		h.respond(w, "911", ipAddress, isStandardFormat)
 		return
 	}
 
-	log.Printf("Successfully updated %s to %s", hostname, ipAddress)
+	logger.Info("Successfully updated %s to %s", hostname, ipAddress)
 	h.respond(w, "good", ipAddress, isStandardFormat)
 }
 

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 
+	"github.com/markussiebert/homeddns/internal/logger"
 	"github.com/markussiebert/homeddns/internal/provider"
 )
 
@@ -17,7 +17,7 @@ func RunUpdate(hostname, recordType string, config *Config) error {
 		return fmt.Errorf("failed to get public IP: %w", err)
 	}
 
-	log.Printf("Current public IP: %s", publicIP)
+	logger.Info("Current public IP: %s", publicIP)
 
 	prov, ok := provider.GetFactory(config.Provider)
 	if !ok {
@@ -30,6 +30,8 @@ func RunUpdate(hostname, recordType string, config *Config) error {
 		return fmt.Errorf("failed to create provider: %w", err)
 	}
 
+	logger.Debug("Updating DNS record: hostname=%s, type=%s, ip=%s, ttl=%d", hostname, recordType, publicIP, config.DefaultTTL)
+
 	record := &provider.DNSRecord{
 		Name:  hostname,
 		Type:  recordType,
@@ -41,7 +43,7 @@ func RunUpdate(hostname, recordType string, config *Config) error {
 		return fmt.Errorf("failed to update DNS record: %w", err)
 	}
 
-	log.Printf("Successfully updated %s record for %s to %s", recordType, hostname, publicIP)
+	logger.Info("Successfully updated %s record for %s to %s", recordType, hostname, publicIP)
 	return nil
 }
 

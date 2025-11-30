@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/markussiebert/homeddns/internal/logger"
 )
 
 const (
@@ -26,8 +28,21 @@ const (
 	netcupCredFile     = "netcup_credentials"
 )
 
+// maskValue masks a value for logging
+func maskValue(value string) string {
+	if len(value) == 0 {
+		return "<empty>"
+	}
+	if len(value) <= 4 {
+		return "***"
+	}
+	// Show first 2 and last 2 characters
+	return value[:2] + "..." + value[len(value)-2:]
+}
+
 // LoadNetcupConfig loads Netcup credentials from environment variables or credential file
 func LoadNetcupConfig() (*NetcupConfig, error) {
+	logger.Debug("Loading Netcup credentials")
 	config := &NetcupConfig{}
 
 	// First, try environment variables
@@ -35,32 +50,56 @@ func LoadNetcupConfig() (*NetcupConfig, error) {
 	config.ApiKey = os.Getenv("NETCUP_API_KEY")
 	config.ApiPassword = os.Getenv("NETCUP_API_PASSWORD")
 
-	if config.CustomerNumber != "" && config.ApiKey != "" && config.ApiPassword != "" {
+	hasCustomerNumber := config.CustomerNumber != ""
+	hasApiKey := config.ApiKey != ""
+	hasApiPassword := config.ApiPassword != ""
+
+	logger.Debug("Environment variables check: NETCUP_CUSTOMER_NUMBER=%v, NETCUP_API_KEY=%v, NETCUP_API_PASSWORD=%v",
+		hasCustomerNumber, hasApiKey, hasApiPassword)
+
+	if hasCustomerNumber && hasApiKey && hasApiPassword {
+		logger.Info("Netcup credentials loaded from environment variables")
+		logger.Debug("Customer number: %s", maskValue(config.CustomerNumber))
 		return config, nil
 	}
 
+	logger.Debug("Environment variables incomplete, attempting to load from credential file")
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
+		logger.Error("Failed to get home directory: %v", err)
 		return nil, fmt.Errorf("failed to get home dir: %w", err)
 	}
 
 	credFile := filepath.Join(homeDir, netcupCredDir, netcupCredFile)
+	logger.Debug("Looking for credentials file at: %s", credFile)
+
 	file, err := os.Open(credFile)
 	if os.IsNotExist(err) {
+		logger.Error("Netcup credentials file not found at %s", credFile)
+		logger.Info("Please set NETCUP_CUSTOMER_NUMBER, NETCUP_API_KEY, NETCUP_API_PASSWORD environment variables or create credentials file")
 		return nil, fmt.Errorf("netcup credentials not found. Please set NETCUP_* environment variables or create %s", credFile)
 	} else if err != nil {
+		logger.Error("Failed to open credentials file %s: %v", credFile, err)
 		return nil, fmt.Errorf("failed to open credentials file %s: %w", credFile, err)
 	}
 	defer file.Close()
 
+	logger.Debug("Reading credentials from file: %s", credFile)
+
 	scanner := bufio.NewScanner(file)
+	lineNum := 0
+	keysFound := 0
 	for scanner.Scan() {
+		lineNum++
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
+			logger.Debug("Skipping line %d (empty or comment)", lineNum)
 			continue
 		}
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
+			logger.Warn("Invalid format at line %d: expected key=value", lineNum)
 			continue
 		}
 		key := strings.TrimSpace(parts[0])
@@ -70,26 +109,41 @@ func LoadNetcupConfig() (*NetcupConfig, error) {
 		case "customer_number":
 			if config.CustomerNumber == "" {
 				config.CustomerNumber = value
+				logger.Debug("Loaded customer_number from file: %s", maskValue(value))
+				keysFound++
 			}
 		case "api_key":
 			if config.ApiKey == "" {
 				config.ApiKey = value
+				logger.Debug("Loaded api_key from file: %s", maskValue(value))
+				keysFound++
 			}
 		case "api_password":
 			if config.ApiPassword == "" {
 				config.ApiPassword = value
+				logger.Debug("Loaded api_password from file: %s", maskValue(value))
+				keysFound++
 			}
+		default:
+			logger.Warn("Unknown key '%s' at line %d", key, lineNum)
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
+		logger.Error("Failed to read credentials file: %v", err)
 		return nil, fmt.Errorf("failed to read credentials file: %w", err)
 	}
 
+	logger.Debug("Read %d lines from credentials file, found %d valid keys", lineNum, keysFound)
+
 	if config.CustomerNumber == "" || config.ApiKey == "" || config.ApiPassword == "" {
+		logger.Error("Incomplete Netcup credentials after reading env vars and file")
+		logger.Debug("Have customer_number: %v, api_key: %v, api_password: %v",
+			config.CustomerNumber != "", config.ApiKey != "", config.ApiPassword != "")
 		return nil, fmt.Errorf("incomplete netcup credentials in env vars and file")
 	}
 
+	logger.Info("Netcup credentials successfully loaded from file: %s", credFile)
 	return config, nil
 }
 
@@ -234,6 +288,8 @@ func (c *NetcupClient) doRequest(ctx context.Context, req *APIRequest) (*APIResp
 
 // login performs a login and stores the session ID
 func (c *NetcupClient) login(ctx context.Context) error {
+	logger.Debug("Netcup: Logging in to CCP API")
+
 	req := &APIRequest{
 		Action: "login",
 		Param: LoginParams{
@@ -258,6 +314,7 @@ func (c *NetcupClient) login(ctx context.Context) error {
 	c.sessionExpiry = time.Now().Add(SessionRefreshTime)
 	c.sessionMu.Unlock()
 
+	logger.Debug("Netcup: Successfully logged in")
 	return nil
 }
 
@@ -347,6 +404,8 @@ func (c *NetcupClient) Logout(ctx context.Context) error {
 	}
 	c.sessionMu.RUnlock()
 
+	logger.Debug("Netcup: Logging out")
+
 	req := &APIRequest{
 		Action: "logout",
 		Param:  c.getSessionParams(),
@@ -362,6 +421,7 @@ func (c *NetcupClient) Logout(ctx context.Context) error {
 	c.sessionExpiry = time.Time{}
 	c.sessionMu.Unlock()
 
+	logger.Debug("Netcup: Successfully logged out")
 	return nil
 }
 
@@ -388,6 +448,8 @@ func (c *NetcupClient) Name() string {
 
 // GetRecord retrieves a specific DNS record
 func (c *NetcupClient) GetRecord(ctx context.Context, domain, hostname, recordType string) (*DNSRecord, error) {
+	logger.Debug("Netcup: Getting record for domain=%s, hostname=%s, type=%s", domain, hostname, recordType)
+
 	// Extract subdomain from hostname
 	subdomain := c.extractSubdomain(hostname, domain)
 
@@ -414,6 +476,8 @@ func (c *NetcupClient) GetRecord(ctx context.Context, domain, hostname, recordTy
 
 // UpdateRecord updates or creates a DNS record
 func (c *NetcupClient) UpdateRecord(ctx context.Context, domain string, record *DNSRecord) error {
+	logger.Debug("Netcup: Updating record for domain=%s, name=%s, type=%s, value=%s", domain, record.Name, record.Type, record.Value)
+
 	// Extract subdomain from hostname
 	subdomain := c.extractSubdomain(record.Name, domain)
 
@@ -436,6 +500,7 @@ func (c *NetcupClient) UpdateRecord(ctx context.Context, domain string, record *
 
 	// Check if update is needed
 	if existingRecord != nil && existingRecord.Destination == record.Value {
+		logger.Debug("Netcup: Record already up to date")
 		// Already up to date
 		return nil
 	}
@@ -458,6 +523,7 @@ func (c *NetcupClient) UpdateRecord(ctx context.Context, domain string, record *
 		return fmt.Errorf("update DNS record: %w", err)
 	}
 
+	logger.Info("Netcup: Successfully updated record %s to %s", record.Name, record.Value)
 	return nil
 }
 

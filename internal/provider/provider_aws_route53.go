@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/route53"
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
+	"github.com/markussiebert/homeddns/internal/logger"
 )
 
 // Route53API defines the interface for the AWS Route53 API, enabling mocking.
@@ -29,10 +30,17 @@ type AwsRoute53Client struct {
 
 // NewAwsRoute53Client creates a new Route53 client
 func NewAwsRoute53Client(ctx context.Context) (*AwsRoute53Client, error) {
+	logger.Debug("Loading AWS Route53 configuration")
+
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
+		logger.Error("Failed to load AWS config: %v", err)
+		logger.Info("Ensure AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_REGION are set")
 		return nil, fmt.Errorf("load AWS config: %w", err)
 	}
+
+	logger.Info("AWS Route53 client initialized successfully (region: %s)", cfg.Region)
+	logger.Debug("AWS config loaded from default credential chain")
 
 	return &AwsRoute53Client{
 		client:    route53.NewFromConfig(cfg),
@@ -63,6 +71,8 @@ func (c *AwsRoute53Client) Name() string {
 
 // GetRecord retrieves a specific DNS record
 func (c *AwsRoute53Client) GetRecord(ctx context.Context, domain, hostname, recordType string) (*DNSRecord, error) {
+	logger.Debug("AWS Route53: Getting record for domain=%s, hostname=%s, type=%s", domain, hostname, recordType)
+
 	// Get hosted zone ID
 	zoneID, err := c.getHostedZoneID(ctx, domain)
 	if err != nil {
@@ -111,6 +121,8 @@ func (c *AwsRoute53Client) GetRecord(ctx context.Context, domain, hostname, reco
 
 // UpdateRecord updates or creates a DNS record
 func (c *AwsRoute53Client) UpdateRecord(ctx context.Context, domain string, record *DNSRecord) error {
+	logger.Debug("AWS Route53: Updating record for domain=%s, name=%s, type=%s, value=%s", domain, record.Name, record.Type, record.Value)
+
 	// Get hosted zone ID
 	zoneID, err := c.getHostedZoneID(ctx, domain)
 	if err != nil {
@@ -123,6 +135,7 @@ func (c *AwsRoute53Client) UpdateRecord(ctx context.Context, domain string, reco
 	// Check if record exists and if it needs updating
 	existing, err := c.GetRecord(ctx, domain, record.Name, record.Type)
 	if err == nil && existing.Value == record.Value {
+		logger.Debug("AWS Route53: Record already up to date")
 		// Record exists and is already up to date
 		return nil
 	}
@@ -158,6 +171,7 @@ func (c *AwsRoute53Client) UpdateRecord(ctx context.Context, domain string, reco
 		return fmt.Errorf("change resource record sets: %w", err)
 	}
 
+	logger.Info("AWS Route53: Successfully updated record %s to %s", record.Name, record.Value)
 	return nil
 }
 
@@ -170,8 +184,11 @@ func (c *AwsRoute53Client) Close(ctx context.Context) error {
 func (c *AwsRoute53Client) getHostedZoneID(ctx context.Context, domain string) (string, error) {
 	// Check cache first
 	if zoneID, exists := c.zoneCache[domain]; exists {
+		logger.Debug("AWS Route53: Using cached zone ID for domain %s", domain)
 		return zoneID, nil
 	}
+
+	logger.Debug("AWS Route53: Looking up hosted zone ID for domain %s", domain)
 
 	// Ensure domain ends with a dot
 	domainWithDot := c.ensureTrailingDot(domain)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/markussiebert/homeddns/cmd"
+	"github.com/markussiebert/homeddns/internal/logger"
 	"github.com/markussiebert/homeddns/internal/provider"
 )
 
@@ -63,6 +64,9 @@ func isRunningInContainer() bool {
 }
 
 func main() {
+	// Initialize logger from DEBUG environment variable
+	logger.SetLevelFromString(os.Getenv("DEBUG"))
+
 	ensureServerDefaultForContainer()
 
 	var cli CLI
@@ -91,6 +95,8 @@ func main() {
 	if err != nil {
 		ctx.FatalIfErrorf(fmt.Errorf("failed to load configuration: %w", err))
 	}
+
+	logger.Debug("Configuration loaded: provider=%s, ttl=%d", config.Provider, config.DefaultTTL)
 
 	switch ctx.Command() {
 	case "server":
