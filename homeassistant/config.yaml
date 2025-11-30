@@ -31,7 +31,7 @@ options:
   domain: ""
   dns_ttl: 60
   port: 8080
-  # Netcup settings
+  # Netcup settings (optional)
   netcup_customer_number: ""
   netcup_api_key: ""
   netcup_api_password: ""
