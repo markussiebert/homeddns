@@ -43,6 +43,8 @@ Self-hosted Dynamic DNS service with support for multiple DNS providers. Perfect
 
 The add-on reads user settings from `/data/options.json` by default. If your Supervisor setup stores `options.json` elsewhere, set `ADDON_OPTIONS_PATH` before starting the container to point to the desired file.
 
+When Home Assistant launches the add-on (or you run the Docker image without CLI args), the binary auto-starts in `server` mode by default—no extra command is needed. If you invoke the binary manually, you can still run `hash-password`, `update`, etc.
+
 ### Generate Password Hash
 
 Before configuring the add-on, you need to generate a bcrypt hash of your password:

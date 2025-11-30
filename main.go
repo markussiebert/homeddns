@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/alecthomas/kong"
@@ -40,7 +41,30 @@ func versionString() string {
 	return fallbackVersion
 }
 
+func ensureServerDefaultForContainer() {
+	if len(os.Args) > 1 {
+		return
+	}
+	if isRunningInContainer() {
+		os.Args = append(os.Args, "server")
+	}
+}
+
+func isRunningInContainer() bool {
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+	data, err := os.ReadFile("/proc/1/cgroup")
+	if err != nil {
+		return false
+	}
+	text := string(data)
+	return strings.Contains(text, "docker") || strings.Contains(text, "kubepods") || strings.Contains(text, "containerd") || strings.Contains(text, "podman")
+}
+
 func main() {
+	ensureServerDefaultForContainer()
+
 	var cli CLI
 	ctx := kong.Parse(&cli)
 
@@ -63,9 +87,15 @@ func main() {
 		return
 	}
 
-	config, err := cmd.LoadConfig()
+	config, err := cmd.LoadHomeAssistantConfig()
 	if err != nil {
-		ctx.FatalIfErrorf(fmt.Errorf("failed to load configuration: %w", err))
+		ctx.FatalIfErrorf(fmt.Errorf("failed to load Home Assistant configuration: %w", err))
+	}
+	if config == nil {
+		config, err = cmd.LoadConfig()
+		if err != nil {
+			ctx.FatalIfErrorf(fmt.Errorf("failed to load configuration: %w", err))
+		}
 	}
 
 	switch ctx.Command() {
