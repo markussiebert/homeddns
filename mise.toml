@@ -4,6 +4,7 @@ go = "1.25.4"
 goreleaser = "2.12.7"
 ko = "0.18.0"
 svu = "3.3.0"
+yq = "4.48.0"
 
 [env]
 CGO_ENABLED = "0"
@@ -254,29 +255,33 @@ description = "Compute next semantic version using svu and update Home Assistant
 run = """
 VERSION=$(svu next)
 echo "$VERSION" > VERSION
-./scripts/update-ha-version.sh "$VERSION"
+yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 """
+
 
 [tasks."release:version:patch"]
 description = "Compute next patch version and update Home Assistant config"
 run = """
 VERSION=$(svu patch)
 echo "$VERSION" > VERSION
-./scripts/update-ha-version.sh "$VERSION"
+yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 """
+
 
 [tasks."release:version:minor"]
 description = "Compute next minor version and update Home Assistant config"
 run = """
 VERSION=$(svu minor)
 echo "$VERSION" > VERSION
-./scripts/update-ha-version.sh "$VERSION"
+yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 """
+
 
 [tasks."release:version:major"]
 description = "Compute next major version and update Home Assistant config"
 run = """
 VERSION=$(svu major)
 echo "$VERSION" > VERSION
-./scripts/update-ha-version.sh "$VERSION"
+yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 """
+

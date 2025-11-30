@@ -87,15 +87,9 @@ func main() {
 		return
 	}
 
-	config, err := cmd.LoadHomeAssistantConfig()
+	config, err := cmd.LoadConfig()
 	if err != nil {
-		ctx.FatalIfErrorf(fmt.Errorf("failed to load Home Assistant configuration: %w", err))
-	}
-	if config == nil {
-		config, err = cmd.LoadConfig()
-		if err != nil {
-			ctx.FatalIfErrorf(fmt.Errorf("failed to load configuration: %w", err))
-		}
+		ctx.FatalIfErrorf(fmt.Errorf("failed to load configuration: %w", err))
 	}
 
 	switch ctx.Command() {
