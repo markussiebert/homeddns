@@ -171,9 +171,11 @@ type NetcupClient struct {
 	apiPassword      string
 	httpNetcupClient *http.Client
 
-	sessionID     string
-	sessionExpiry time.Time
-	sessionMu     sync.RWMutex
+	sessionID      string
+	sessionExpiry  time.Time
+	sessionMu      sync.RWMutex
+	loginCount     int       // Total number of logins performed
+	firstLoginTime time.Time // Time of first login
 }
 
 // APIRequest represents a generic API request
@@ -294,7 +296,8 @@ func (c *NetcupClient) doRequest(ctx context.Context, req *APIRequest) (*APIResp
 // login performs a login and stores the session ID
 // Must be called with sessionMu write lock NOT held
 func (c *NetcupClient) login(ctx context.Context) error {
-	logger.Debug("Netcup: Logging in to CCP API")
+	loginTime := time.Now()
+	logger.Info("Netcup: Initiating login to CCP API (attempt at %s)", loginTime.Format("15:04:05.000"))
 
 	req := &APIRequest{
 		Action: "login",
@@ -305,22 +308,37 @@ func (c *NetcupClient) login(ctx context.Context) error {
 		},
 	}
 
+	logger.Debug("Netcup: Sending login request to %s", c.endpoint)
 	resp, err := c.doRequest(ctx, req)
 	if err != nil {
+		logger.Error("Netcup: Login request failed: %v", err)
 		return fmt.Errorf("login request: %w", err)
 	}
 
 	var loginResp LoginResponse
 	if err := json.Unmarshal(resp.ResponseData, &loginResp); err != nil {
+		logger.Error("Netcup: Failed to parse login response: %v", err)
 		return fmt.Errorf("unmarshal login response: %w", err)
 	}
 
 	c.sessionMu.Lock()
 	c.sessionID = loginResp.APISessionID
 	c.sessionExpiry = time.Now().Add(SessionRefreshTime)
+	c.loginCount++
+	if c.firstLoginTime.IsZero() {
+		c.firstLoginTime = loginTime
+	}
+	sessionID := c.sessionID
+	loginCount := c.loginCount
+	timeSinceFirst := time.Since(c.firstLoginTime)
 	c.sessionMu.Unlock()
 
-	logger.Info("Netcup: Successfully logged in, session valid for %v", SessionRefreshTime)
+	logger.Info("Netcup: ✓ Login successful (#%d, total time: %v), session ID: %s..., valid until %s (duration: %v)",
+		loginCount,
+		timeSinceFirst.Round(time.Second),
+		maskValue(sessionID),
+		c.sessionExpiry.Format("15:04:05"),
+		SessionRefreshTime)
 	return nil
 }
 
@@ -335,7 +353,7 @@ func (c *NetcupClient) ensureSession(ctx context.Context) error {
 	c.sessionMu.RUnlock()
 
 	if hasSession && !isExpired {
-		logger.Debug("Netcup: Reusing existing session (expires in %v)", timeUntilExpiry)
+		logger.Debug("Netcup: ✓ Reusing existing session (expires in %v)", timeUntilExpiry)
 		return nil
 	}
 
@@ -348,14 +366,14 @@ func (c *NetcupClient) ensureSession(ctx context.Context) error {
 	isExpired = time.Now().After(c.sessionExpiry)
 
 	if hasSession && !isExpired {
-		logger.Debug("Netcup: Session was refreshed by another request, reusing it")
+		logger.Info("Netcup: ✓ Session was refreshed by another request, reusing it")
 		return nil
 	}
 
 	if hasSession && isExpired {
-		logger.Debug("Netcup: Session expired, re-authenticating")
+		logger.Warn("Netcup: Session expired (was valid until %v), re-authenticating now", c.sessionExpiry.Format("15:04:05"))
 	} else {
-		logger.Debug("Netcup: No session, authenticating")
+		logger.Info("Netcup: No active session, authenticating for the first time")
 	}
 
 	// Release the lock before calling login (login will acquire it internally)
