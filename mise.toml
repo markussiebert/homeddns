@@ -311,8 +311,6 @@ echo "$VERSION"
 [tasks.release]
 description = "Complete release workflow: version, tag, and trigger publish"
 run = """
-set -euo pipefail
-
 # Determine version bump type from environment variable (default: next)
 BUMP="${RELEASE_BUMP:-next}"
 
