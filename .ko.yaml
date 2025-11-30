@@ -2,7 +2,8 @@
 # https://ko.build/configuration/
 
 # Distroless base for minimal attack surface and security
-defaultBaseImage: gcr.io/distroless/static-debian12:nonroot
+# Note: Using root variant for Home Assistant compatibility (/data/options.json access)
+defaultBaseImage: gcr.io/distroless/static-debian12:latest
 
 # Build settings matching GoReleaser optimization
 builds:

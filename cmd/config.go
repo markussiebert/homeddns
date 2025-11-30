@@ -39,10 +39,14 @@ func LoadHomeAssistantConfig() error {
 		return fmt.Errorf("options path %s is a directory", optionsPath)
 	}
 
-	logger.Debug("Reading options file (size: %d bytes)", info.Size())
+	logger.Debug("Reading options file (size: %d bytes, mode: %s, uid/gid: owner info)", info.Size(), info.Mode())
 	data, err := os.ReadFile(optionsPath)
 	if err != nil {
 		logger.Error("Failed to read options file %s: %v", optionsPath, err)
+		if os.IsPermission(err) {
+			logger.Error("Permission denied reading options file - Home Assistant addon may need 'hassio_api: true' or file permissions fix")
+			logger.Info("Current process UID: %d, file mode: %s", os.Getuid(), info.Mode())
+		}
 		return fmt.Errorf("failed to read options file %s: %w", optionsPath, err)
 	}
 

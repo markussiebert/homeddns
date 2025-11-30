@@ -64,8 +64,8 @@ func isRunningInContainer() bool {
 }
 
 func main() {
-	// Initialize logger from DEBUG environment variable
-	logger.SetLevelFromString(os.Getenv("DEBUG"))
+	// Initialize logger from LOG_LEVEL environment variable
+	logger.SetLevelFromString(os.Getenv("LOG_LEVEL"))
 
 	ensureServerDefaultForContainer()
 
