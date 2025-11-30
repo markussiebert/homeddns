@@ -2,6 +2,7 @@
 
 ## Build & Test Commands (Use mise tasks)
 - **CI Pipeline**: `mise run ci` - Run full CI (tidy, test, build, ko, validate)
+- **Publish**: `mise run publish` - Complete publish workflow (test, build, sign, release)
 - **Build Binary**: `mise run build`
 - **Build Linux Binary**: `mise run build:linux` or `mise run build:linux-arm`
 - **Build Container**: `mise run build:ko` (Ko builds without Dockerfile)

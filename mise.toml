@@ -307,6 +307,25 @@ yq eval -i '.version = strenv(VERSION)' homeassistant/config.yaml
 echo "$VERSION"
 """
 
+# Complete publish workflow task
+[tasks.publish]
+description = "Complete publish workflow: build binaries, containers, sign, and release"
+depends = ["test", "release:validate", "release:goreleaser", "release:ko-with-version", "release:ko-sign"]
+run = """
+VERSION=$(cat VERSION)
+echo ""
+echo "✅ Publish complete for v${VERSION}"
+echo ""
+echo "Summary:"
+echo "  - Binaries released via GoReleaser"
+echo "  - Container images built and pushed"
+echo "  - Images signed with cosign"
+echo ""
+echo "Links:"
+echo "  - GitHub Release: https://github.com/${REPO_NAME}/releases/tag/v${VERSION}"
+echo "  - Container: ghcr.io/${REPO_NAME}:${VERSION}"
+"""
+
 # Complete release workflow task
 [tasks.release]
 description = "Complete release workflow: version, tag, and trigger publish"
