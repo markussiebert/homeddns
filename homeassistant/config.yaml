@@ -57,4 +57,4 @@ schema:
 image: "ghcr.io/markussiebert/homeddns"
 environment:
   ADDON_OPTIONS_PATH: "/data/options.json"
-  LOG_LEVEL: "debug"
+  LOG_LEVEL: "info"
