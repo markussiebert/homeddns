@@ -31,6 +31,7 @@ options:
   domain: ""
   dns_ttl: 60
   port: 8080
+  log_level: "info"
   # Netcup settings (optional)
   netcup_customer_number: ""
   netcup_api_key: ""
@@ -46,6 +47,7 @@ schema:
   domain: str
   dns_ttl: int(30,86400)
   port: int(1024,65535)
+  log_level: list(debug|info|warn|error)?
   # Netcup settings
   netcup_customer_number: str?
   netcup_api_key: password?
@@ -57,4 +59,3 @@ schema:
 image: "ghcr.io/markussiebert/homeddns"
 environment:
   ADDON_OPTIONS_PATH: "/data/options.json"
-  LOG_LEVEL: "info"

@@ -64,8 +64,9 @@ func isRunningInContainer() bool {
 }
 
 func main() {
-	// Initialize logger from LOG_LEVEL environment variable
-	logger.SetLevelFromString(os.Getenv("LOG_LEVEL"))
+	// Initialize logger at INFO level by default
+	// Will be re-initialized after loading Home Assistant config
+	logger.SetLevel(logger.LevelInfo)
 
 	ensureServerDefaultForContainer()
 
@@ -96,6 +97,9 @@ func main() {
 		ctx.FatalIfErrorf(fmt.Errorf("failed to load configuration: %w", err))
 	}
 
+	// Re-initialize logger with LOG_LEVEL from environment (set by Home Assistant config)
+	logger.SetLevelFromString(os.Getenv("LOG_LEVEL"))
+	logger.Debug("Logger re-initialized with level: %s", logger.GetLevel())
 	logger.Debug("Configuration loaded: provider=%s, ttl=%d", config.Provider, config.DefaultTTL)
 
 	switch ctx.Command() {

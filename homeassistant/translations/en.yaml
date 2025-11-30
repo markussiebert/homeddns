@@ -17,6 +17,9 @@ configuration:
   port:
     name: "Port"
     description: "HTTP server port (only needed if not using Ingress)"
+  log_level:
+    name: "Log Level"
+    description: "Logging verbosity: debug (verbose), info (default), warn (warnings only), error (errors only)"
   netcup_customer_number:
     name: "Netcup Customer Number"
     description: "Your Netcup customer number (found in CCP account overview)"
