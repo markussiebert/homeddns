@@ -20,6 +20,15 @@ configuration:
   log_level:
     name: "Log Level"
     description: "Logging verbosity: debug (verbose), info (default), warn (warnings only), error (errors only)"
+  ssl:
+    name: "Enable SSL/TLS"
+    description: "Enable HTTPS using Home Assistant's SSL certificates"
+  certfile:
+    name: "Certificate File"
+    description: "Path to SSL certificate file (relative to /ssl directory, default: fullchain.pem)"
+  keyfile:
+    name: "Private Key File"
+    description: "Path to SSL private key file (relative to /ssl directory, default: privkey.pem)"
   netcup_customer_number:
     name: "Netcup Customer Number"
     description: "Your Netcup customer number (found in CCP account overview)"

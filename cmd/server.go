@@ -55,10 +55,19 @@ func RunServer(port int, config *Config) error {
 	}
 
 	go func() {
-		logger.Info("Starting DynDNS server on port %d", port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("Server error: %v", err)
-			os.Exit(1)
+		if config.SSL {
+			logger.Info("Starting DynDNS server with TLS on port %d", port)
+			logger.Debug("Using certfile: %s, keyfile: %s", config.CertFile, config.KeyFile)
+			if err := server.ListenAndServeTLS(config.CertFile, config.KeyFile); err != nil && err != http.ErrServerClosed {
+				logger.Error("Server TLS error: %v", err)
+				os.Exit(1)
+			}
+		} else {
+			logger.Info("Starting DynDNS server on port %d (HTTP, no TLS)", port)
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Error("Server error: %v", err)
+				os.Exit(1)
+			}
 		}
 	}()
 

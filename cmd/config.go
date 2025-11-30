@@ -18,6 +18,9 @@ type Config struct {
 	Provider     string
 	Domain       string
 	DefaultTTL   int
+	SSL          bool
+	CertFile     string
+	KeyFile      string
 }
 
 func LoadHomeAssistantConfig() error {
@@ -195,8 +198,32 @@ func LoadConfig() (*Config, error) {
 		logger.Debug("DNS_TTL not set, using default: %d", config.DefaultTTL)
 	}
 
-	logger.Info("Configuration loaded successfully: provider=%s, domain=%s, port=%d, ttl=%d",
-		config.Provider, config.Domain, config.Port, config.DefaultTTL)
+	// SSL Configuration
+	if ssl := os.Getenv("SSL"); ssl != "" {
+		logger.Debug("Reading SSL from env: %s", ssl)
+		config.SSL = ssl == "true" || ssl == "1"
+		logger.Debug("Set SSL enabled to: %v", config.SSL)
+	}
+
+	// Certificate files (only relevant if SSL is enabled)
+	if certFile := os.Getenv("CERTFILE"); certFile != "" {
+		logger.Debug("Reading CERTFILE from env: %s", certFile)
+		config.CertFile = certFile
+	} else {
+		config.CertFile = "/ssl/fullchain.pem" // Home Assistant default
+	}
+
+	if keyFile := os.Getenv("KEYFILE"); keyFile != "" {
+		logger.Debug("Reading KEYFILE from env: %s", keyFile)
+		config.KeyFile = keyFile
+	} else {
+		config.KeyFile = "/ssl/privkey.pem" // Home Assistant default
+	}
+
+	logger.Debug("SSL config: enabled=%v, certfile=%s, keyfile=%s", config.SSL, config.CertFile, config.KeyFile)
+
+	logger.Info("Configuration loaded successfully: provider=%s, domain=%s, port=%d, ttl=%d, ssl=%v",
+		config.Provider, config.Domain, config.Port, config.DefaultTTL, config.SSL)
 
 	return config, nil
 }

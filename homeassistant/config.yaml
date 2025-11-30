@@ -32,6 +32,9 @@ options:
   dns_ttl: 60
   port: 8080
   log_level: "info"
+  ssl: false
+  certfile: "fullchain.pem"
+  keyfile: "privkey.pem"
   # Netcup settings (optional)
   netcup_customer_number: ""
   netcup_api_key: ""
@@ -48,6 +51,9 @@ schema:
   dns_ttl: int(30,86400)
   port: int(1024,65535)
   log_level: list(debug|info|warn|error)?
+  ssl: bool
+  certfile: str
+  keyfile: str
   # Netcup settings
   netcup_customer_number: str?
   netcup_api_key: password?
@@ -57,5 +63,7 @@ schema:
   aws_secret_access_key: password?
   aws_region: str?
 image: "ghcr.io/markussiebert/homeddns"
+map:
+  - ssl
 environment:
   ADDON_OPTIONS_PATH: "/data/options.json"
