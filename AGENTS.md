@@ -88,3 +88,6 @@ The project uses a **Ko-first** strategy with clean separation of concerns:
 If you are unsure about build tools or configurations, check the `repomix/` folder:
 - **goreleaser.xml**: Complete documentation for GoReleaser (multi-platform release builds)
 - **ko.xml**: Complete documentation for Ko (containerless Kubernetes image builder)
+
+## Git Practices
+- **Conventional commits**: Always format commit messages using the Conventional Commits specification so release tooling can infer version bumps and changelog entries.
