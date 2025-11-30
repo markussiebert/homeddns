@@ -55,5 +55,5 @@ schema:
   aws_secret_access_key: password?
   aws_region: str?
 image: "ghcr.io/markussiebert/homeddns"
-env:
+environment:
   ADDON_OPTIONS_PATH: "/data/options.json"
