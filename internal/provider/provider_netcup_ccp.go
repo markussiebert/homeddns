@@ -280,6 +280,11 @@ func (c *NetcupClient) doRequest(ctx context.Context, req *APIRequest) (*APIResp
 	}
 
 	if apiResp.Status != "success" {
+		// Check for rate limiting
+		if apiResp.StatusCode == 4013 {
+			logger.Warn("Netcup: Rate limit hit (180 req/min). Error: %s", apiResp.LongMessage)
+			return nil, fmt.Errorf("rate limit exceeded: %s (code: %d)", apiResp.LongMessage, apiResp.StatusCode)
+		}
 		return nil, fmt.Errorf("API error: %s - %s (code: %d)", apiResp.ShortMessage, apiResp.LongMessage, apiResp.StatusCode)
 	}
 
@@ -287,6 +292,7 @@ func (c *NetcupClient) doRequest(ctx context.Context, req *APIRequest) (*APIResp
 }
 
 // login performs a login and stores the session ID
+// Must be called with sessionMu write lock NOT held
 func (c *NetcupClient) login(ctx context.Context) error {
 	logger.Debug("Netcup: Logging in to CCP API")
 
@@ -314,21 +320,50 @@ func (c *NetcupClient) login(ctx context.Context) error {
 	c.sessionExpiry = time.Now().Add(SessionRefreshTime)
 	c.sessionMu.Unlock()
 
-	logger.Debug("Netcup: Successfully logged in")
+	logger.Info("Netcup: Successfully logged in, session valid for %v", SessionRefreshTime)
 	return nil
 }
 
 // ensureSession ensures we have a valid session
+// Uses double-check locking pattern to prevent concurrent login attempts
 func (c *NetcupClient) ensureSession(ctx context.Context) error {
+	// First check without write lock (fast path)
 	c.sessionMu.RLock()
-	needsRefresh := c.sessionID == "" || time.Now().After(c.sessionExpiry)
+	hasSession := c.sessionID != ""
+	isExpired := time.Now().After(c.sessionExpiry)
+	timeUntilExpiry := time.Until(c.sessionExpiry)
 	c.sessionMu.RUnlock()
 
-	if needsRefresh {
-		return c.login(ctx)
+	if hasSession && !isExpired {
+		logger.Debug("Netcup: Reusing existing session (expires in %v)", timeUntilExpiry)
+		return nil
 	}
 
-	return nil
+	// Need to login - acquire write lock to prevent concurrent logins
+	c.sessionMu.Lock()
+	defer c.sessionMu.Unlock()
+
+	// Double-check: another goroutine might have logged in while we waited for the lock
+	hasSession = c.sessionID != ""
+	isExpired = time.Now().After(c.sessionExpiry)
+
+	if hasSession && !isExpired {
+		logger.Debug("Netcup: Session was refreshed by another request, reusing it")
+		return nil
+	}
+
+	if hasSession && isExpired {
+		logger.Debug("Netcup: Session expired, re-authenticating")
+	} else {
+		logger.Debug("Netcup: No session, authenticating")
+	}
+
+	// Release the lock before calling login (login will acquire it internally)
+	c.sessionMu.Unlock()
+	err := c.login(ctx)
+	c.sessionMu.Lock() // Re-acquire for defer
+
+	return err
 }
 
 // getSessionParams returns session parameters
