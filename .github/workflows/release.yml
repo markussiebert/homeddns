@@ -39,6 +39,7 @@ jobs:
         run: mise run release
         env:
           RELEASE_BUMP: ${{ github.event.inputs.bump }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release summary
         run: |
