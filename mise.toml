@@ -381,16 +381,10 @@ git push origin HEAD
 git tag "$VERSION_WITH_V"
 git push origin "$VERSION_WITH_V"
 
-# Trigger publish workflow (with 'v' prefix)
-echo ""
-echo "🚀 Triggering publish workflow for $VERSION_WITH_V..."
-gh workflow run publish.yml -f tag="$VERSION_WITH_V"
-
-# Wait a moment for the workflow to start
-sleep 2
-
 echo ""
 echo "✅ Release $VERSION_WITH_V completed successfully"
+echo ""
+echo "📋 Tag pushed to origin, publish workflow will be triggered automatically"
 echo ""
 echo "Next steps:"
 echo "  - Monitor the publish workflow: gh run list --workflow=publish.yml"
