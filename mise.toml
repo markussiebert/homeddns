@@ -350,11 +350,19 @@ git push origin HEAD
 git tag "$VERSION"
 git push origin "$VERSION"
 
+# Trigger publish workflow
+echo ""
+echo "🚀 Triggering publish workflow for $VERSION..."
+gh workflow run publish.yml -f tag="$VERSION"
+
+# Wait a moment for the workflow to start
+sleep 2
+
 echo ""
 echo "✅ Release $VERSION completed successfully"
 echo ""
 echo "Next steps:"
-echo "  - Monitor the publish workflow"
-echo "  - Check GitHub releases page"
+echo "  - Monitor the publish workflow: gh run list --workflow=publish.yml"
+echo "  - Check GitHub releases page: https://github.com/${REPO_NAME}/releases/tag/$VERSION"
 """
 
