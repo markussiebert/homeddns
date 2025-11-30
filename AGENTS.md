@@ -1,6 +1,7 @@
 # Agent Guidelines for homeddns
 
 ## Build & Test Commands (Use mise tasks)
+- **CI Pipeline**: `mise run ci` - Run full CI (tidy, test, build, ko, validate)
 - **Build Binary**: `mise run build`
 - **Build Linux Binary**: `mise run build:linux` or `mise run build:linux-arm`
 - **Build Container**: `mise run build:ko` (Ko builds without Dockerfile)
@@ -20,9 +21,20 @@ All builds use aggressive optimization flags for minimal binary size:
 - `-tags netgo`: Pure Go networking (no CGO)
 - Result: ~14MB optimized binary
 
+## Mise Best Practices
+- **Prefer mise tasks over shell scripts**: All build, test, and release operations should be defined as mise tasks in `mise.toml`
+- **Use mise task dependencies**: Leverage `depends = [...]` to ensure tasks run in correct order (e.g., `fmt` and `tidy` before `build`)
+- **Keep GitHub workflows minimal**: Workflows should call ONE mise task - let mise dependencies handle the rest. Business logic belongs in `mise.toml`
+- **Single task execution**: CI workflows should run `mise run ci` or `mise run release`, not multiple separate tasks
+- **Never call mise from mise**: NEVER use `mise run` inside task scripts - use `depends = [...]` instead to create proper DAG
+- **Centralize tool versions**: All tools (go, goreleaser, ko, cosign, svu, yq) are defined in `mise.toml` `[tools]` section
+- **Environment consistency**: mise ensures same tool versions locally and in CI
+- **Task naming conventions**: Use `task:subtask` format (e.g., `build:linux`, `release:validate`)
+- **Orchestration via dependencies**: Use task dependencies in mise.toml instead of workflow steps to orchestrate complex builds
+
 ## Code Style & Conventions
 - **Go Version**: 1.25.4 (managed via mise.toml)
-- **Tools**: All tools (go, goreleaser, ko, cosign, svu) managed via mise.toml
+- **Tools**: All tools (go, goreleaser, ko, cosign, svu, yq) managed via mise.toml
 - **Environment Variables**: Use `.env.local` for local development (copy from `.env.local.example`)
 - **Imports**: Group stdlib, external, and local packages with blank lines between groups
 - **Error Handling**: Always wrap errors with context: `fmt.Errorf("action failed: %w", err)`

@@ -38,25 +38,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Verify dependencies
-        run: |
-          mise run tidy
-          git diff --exit-code go.mod go.sum
+      - name: Run CI pipeline
+        run: mise run ci
 
-      - name: Run tests
-        run: mise run test
-
-      - name: Build binary
-        run: mise run build
+      - name: Check dependency changes
+        run: git diff --exit-code go.mod go.sum
 
       - name: Check binary size
         run: |
           ls -lh homeddns
-          size=$(stat -f%z homeddns 2>/dev/null || stat -c%s homeddns)
+          size=$(stat -c%s homeddns)
           echo "Binary size: $(($size / 1024 / 1024))MB"
-
-      - name: Build Ko image locally
-        run: mise run build:ko
-
-      - name: Validate GoReleaser config
-        run: mise run release:validate
