@@ -1,3 +1,13 @@
 # macOS filesystem cruft
 **/.DS_Store
+
+# Build artifacts
+dist/
+homeddns
+homeddns-*
+
+# Temporary files
 repomix/
+
+# Environment files
+.env.local
