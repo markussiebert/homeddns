@@ -49,4 +49,4 @@ configuration:
     description: "AWS region where your Route53 hosted zone is located"
 
 network:
-  8080/tcp: "HTTP API port for DynDNS updates (can be disabled if using Ingress)"
+  8053/tcp: "HTTP API port for DynDNS updates (can be disabled if using Ingress)"

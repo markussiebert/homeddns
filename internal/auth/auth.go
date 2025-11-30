@@ -4,14 +4,12 @@ import (
 	"encoding/base64"
 	"net/http"
 	"strings"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 // Config represents authentication configuration
 type Config struct {
-	Username     string
-	PasswordHash string // bcrypt hash
+	Username string
+	Password string
 }
 
 // Middleware creates a basic auth middleware
@@ -49,12 +47,7 @@ func Middleware(config Config) func(http.Handler) http.Handler {
 			username, password := parts[0], parts[1]
 
 			// Verify credentials
-			if username != config.Username {
-				unauthorized(w)
-				return
-			}
-
-			if err := bcrypt.CompareHashAndPassword([]byte(config.PasswordHash), []byte(password)); err != nil {
+			if username != config.Username || password != config.Password {
 				unauthorized(w)
 				return
 			}

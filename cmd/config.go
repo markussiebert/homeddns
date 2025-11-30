@@ -8,19 +8,20 @@ import (
 	"strings"
 
 	"github.com/markussiebert/homeddns/internal/logger"
+	"github.com/markussiebert/homeddns/internal/util"
 )
 
 // Config represents the application configuration
 type Config struct {
-	Port         int
-	Username     string
-	PasswordHash string
-	Provider     string
-	Domain       string
-	DefaultTTL   int
-	SSL          bool
-	CertFile     string
-	KeyFile      string
+	Port       int
+	Username   string
+	Password   string
+	Provider   string
+	Domain     string
+	DefaultTTL int
+	SSL        bool
+	CertFile   string
+	KeyFile    string
 }
 
 func LoadHomeAssistantConfig() error {
@@ -34,32 +35,28 @@ func LoadHomeAssistantConfig() error {
 
 	info, err := os.Stat(optionsPath)
 	if err != nil {
-		logger.Error("Failed to stat options file %s: %v", optionsPath, err)
-		return fmt.Errorf("failed to stat options file %s: %w", optionsPath, err)
+		return logger.Errorf("failed to stat options file %s: %w", optionsPath, err)
 	}
 	if info.IsDir() {
-		logger.Error("Options path %s is a directory, expected a file", optionsPath)
-		return fmt.Errorf("options path %s is a directory", optionsPath)
+		return logger.Errorf("options path %s is a directory", optionsPath)
 	}
 
 	logger.Debug("Reading options file (size: %d bytes, mode: %s, uid/gid: owner info)", info.Size(), info.Mode())
 	data, err := os.ReadFile(optionsPath)
 	if err != nil {
-		logger.Error("Failed to read options file %s: %v", optionsPath, err)
 		if os.IsPermission(err) {
-			logger.Error("Permission denied reading options file - Home Assistant addon may need 'hassio_api: true' or file permissions fix")
+			logger.Info("Permission denied reading options file - Home Assistant addon may need 'hassio_api: true' or file permissions fix")
 			logger.Info("Current process UID: %d, file mode: %s", os.Getuid(), info.Mode())
 		}
-		return fmt.Errorf("failed to read options file %s: %w", optionsPath, err)
+		return logger.Errorf("failed to read options file %s: %w", optionsPath, err)
 	}
 
 	logger.Debug("Raw JSON content: %s", string(data))
 
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
-		logger.Error("Failed to parse options.json: %v", err)
 		logger.Debug("Invalid JSON content was: %s", string(data))
-		return fmt.Errorf("failed to parse options.json: %w", err)
+		return logger.Errorf("failed to parse options.json: %w", err)
 	}
 
 	logger.Info("Successfully parsed options.json with %d keys", len(raw))
@@ -76,8 +73,8 @@ func LoadHomeAssistantConfig() error {
 
 		// Mask sensitive values in logs
 		logValue := envValue
-		if isSensitiveKey(key) {
-			logValue = maskSensitive(envValue)
+		if util.IsSensitiveKey(key) {
+			logValue = util.MaskSensitive(envValue)
 		}
 
 		logger.Debug("Setting env var: %s=%s (from JSON key: %s)", envKey, logValue, key)
@@ -98,33 +95,6 @@ func getKeys(m map[string]any) []string {
 	return keys
 }
 
-// isSensitiveKey checks if a key contains sensitive information
-func isSensitiveKey(key string) bool {
-	lowerKey := strings.ToLower(key)
-	sensitivePatterns := []string{
-		"password", "secret", "key", "token", "hash",
-		"api_key", "api_password", "access_key", "customer_number",
-	}
-	for _, pattern := range sensitivePatterns {
-		if strings.Contains(lowerKey, pattern) {
-			return true
-		}
-	}
-	return false
-}
-
-// maskSensitive masks sensitive values for logging
-func maskSensitive(value string) string {
-	if len(value) == 0 {
-		return "<empty>"
-	}
-	if len(value) <= 8 {
-		return "***"
-	}
-	// Show first 4 and last 4 characters
-	return value[:4] + "..." + value[len(value)-4:]
-}
-
 func LoadConfig() (*Config, error) {
 	logger.Debug("Loading application configuration")
 
@@ -133,7 +103,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		Port:       8080,
+		Port:       8053,
 		DefaultTTL: 60,
 		Provider:   "netcup_ccp", // default provider
 	}
@@ -145,8 +115,7 @@ func LoadConfig() (*Config, error) {
 		logger.Debug("Reading PORT from env: %s", port)
 		p, err := strconv.Atoi(port)
 		if err != nil {
-			logger.Error("Invalid PORT value '%s': %v", port, err)
-			return nil, fmt.Errorf("invalid PORT: %w", err)
+			return nil, logger.Errorf("invalid PORT: %w", err)
 		}
 		config.Port = p
 		logger.Debug("Set port to: %d", p)
@@ -155,17 +124,15 @@ func LoadConfig() (*Config, error) {
 	// Auth credentials
 	config.Username = os.Getenv("AUTH_USERNAME")
 	if config.Username == "" {
-		logger.Error("AUTH_USERNAME environment variable is not set")
-		return nil, fmt.Errorf("AUTH_USERNAME is required")
+		return nil, logger.Errorf("AUTH_USERNAME is required")
 	}
 	logger.Debug("Auth username: %s", config.Username)
 
-	config.PasswordHash = os.Getenv("AUTH_PASSWORD_HASH")
-	if config.PasswordHash == "" {
-		logger.Error("AUTH_PASSWORD_HASH environment variable is not set")
-		return nil, fmt.Errorf("AUTH_PASSWORD_HASH is required")
+	config.Password = os.Getenv("AUTH_PASSWORD")
+	if config.Password == "" {
+		return nil, logger.Errorf("AUTH_PASSWORD is required")
 	}
-	logger.Debug("Password hash loaded (length: %d)", len(config.PasswordHash))
+	logger.Debug("Password loaded (length: %d)", len(config.Password))
 
 	// Provider selection
 	if provider := os.Getenv("DNS_PROVIDER"); provider != "" {
@@ -179,8 +146,7 @@ func LoadConfig() (*Config, error) {
 	// Domain
 	config.Domain = os.Getenv("DOMAIN")
 	if config.Domain == "" {
-		logger.Error("DOMAIN environment variable is not set")
-		return nil, fmt.Errorf("DOMAIN is required")
+		return nil, logger.Errorf("DOMAIN is required")
 	}
 	logger.Debug("Domain: %s", config.Domain)
 
@@ -189,8 +155,7 @@ func LoadConfig() (*Config, error) {
 		logger.Debug("Reading DNS_TTL from env: %s", ttl)
 		t, err := strconv.Atoi(ttl)
 		if err != nil {
-			logger.Error("Invalid DNS_TTL value '%s': %v", ttl, err)
-			return nil, fmt.Errorf("invalid DNS_TTL: %w", err)
+			return nil, logger.Errorf("invalid DNS_TTL: %w", err)
 		}
 		config.DefaultTTL = t
 		logger.Debug("Set TTL to: %d", t)
@@ -237,12 +202,10 @@ func LoadConfig() (*Config, error) {
 	// Validate SSL certificate files exist if SSL is enabled
 	if config.SSL {
 		if _, err := os.Stat(config.CertFile); err != nil {
-			logger.Error("SSL certificate file not found: %s (error: %v)", config.CertFile, err)
-			return nil, fmt.Errorf("SSL certificate file not found: %s", config.CertFile)
+			return nil, logger.Errorf("SSL certificate file not found: %s", config.CertFile)
 		}
 		if _, err := os.Stat(config.KeyFile); err != nil {
-			logger.Error("SSL key file not found: %s (error: %v)", config.KeyFile, err)
-			return nil, fmt.Errorf("SSL key file not found: %s", config.KeyFile)
+			return nil, logger.Errorf("SSL key file not found: %s", config.KeyFile)
 		}
 		logger.Info("SSL certificate files validated successfully")
 	}

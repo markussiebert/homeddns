@@ -13,11 +13,11 @@ url: "https://github.com/markussiebert/homeddns"
 startup: services
 boot: auto
 ports:
-  8080/tcp: 8080
+  8053/tcp: 8053
 ports_description:
-  8080/tcp: "HTTP API port for DynDNS updates (can be disabled if using Ingress)"
+  8053/tcp: "HTTP API port for DynDNS updates (can be disabled if using Ingress)"
 ingress: true
-ingress_port: 8080
+ingress_port: 8053
 panel_icon: mdi:dns
 panel_title: "HomeDDNS"
 panel_admin: true
@@ -26,11 +26,11 @@ hassio_api: false
 host_network: false
 options:
   auth_username: "dyndns"
-  auth_password_hash: ""
+  auth_password: ""
   dns_provider: "netcup_ccp"
   domain: ""
   dns_ttl: 60
-  port: 8080
+  port: 8053
   log_level: "info"
   ssl: false
   certfile: "fullchain.pem"
@@ -45,7 +45,7 @@ options:
   aws_region: ""
 schema:
   auth_username: str
-  auth_password_hash: password
+  auth_password: password
   dns_provider: list(netcup_ccp|route53)
   domain: str
   dns_ttl: int(30,86400)

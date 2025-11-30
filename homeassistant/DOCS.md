@@ -57,23 +57,13 @@ This add-on supports two DNS providers:
 3. Generate access keys for the IAM user
 4. Save the Access Key ID and Secret Access Key
 
-### 3. Generate Password Hash
-
-Before configuring, generate a bcrypt hash of your password:
-
-```bash
-docker run --rm -i ghcr.io/markussiebert/homeddns:latest hash-password
-# Type your password and press Enter
-# Copy the output hash
-```
-
-### 4. Configure the Add-on
+### 3. Configure the Add-on
 
 Example configuration for Netcup:
 
 ```yaml
 auth_username: "dyndns"
-auth_password_hash: "$2a$10$VpADQ4ns1gr1LbHZr/2/f.LdrKT8chhHUJVoMyjOv1A3Y5msQQJVi"
+auth_password: "your-secure-password"
 dns_provider: "netcup_ccp"
 domain: "example.com"
 dns_ttl: 60
@@ -86,7 +76,7 @@ Example configuration for AWS Route53:
 
 ```yaml
 auth_username: "dyndns"
-auth_password_hash: "$2a$10$VpADQ4ns1gr1LbHZr/2/f.LdrKT8chhHUJVoMyjOv1A3Y5msQQJVi"
+auth_password: "$2a$10$VpADQ4ns1gr1LbHZr/2/f.LdrKT8chhHUJVoMyjOv1A3Y5msQQJVi"
 dns_provider: "route53"
 domain: "example.com"
 dns_ttl: 60
@@ -100,17 +90,17 @@ aws_region: "us-east-1"
 Most modern routers support DynDNS. Here's how to set it up:
 
 **Generic DynDNS Client:**
-- Server: `homeassistant.local:8080`
+- Server: `homeassistant.local:8053`
 - Path: `/nic/update?hostname=%h&myip=%i`
 - Username: Your `auth_username` from config
 - Password: Your `auth_password` from config
 
 **UniFi Devices:**
 - Service: `custom`
-- Server: `homeassistant.local:8080/%h`
+- Server: `homeassistant.local:8053/%h`
 
 **Fritz!Box:**
-- Update-URL: `http://homeassistant.local:8080/nic/update?hostname=<domain>&myip=<ipaddr>`
+- Update-URL: `http://homeassistant.local:8053/nic/update?hostname=<domain>&myip=<ipaddr>`
 
 ## Advanced Features
 
@@ -120,7 +110,7 @@ Update all subdomains at once:
 
 ```bash
 curl -u "dyndns:password" \
-  "http://homeassistant.local:8080/nic/update?hostname=*.example.com"
+  "http://homeassistant.local:8053/nic/update?hostname=*.example.com"
 ```
 
 This will update `*.example.com` to point to your current IP, so `anything.example.com` will resolve correctly.
@@ -180,7 +170,7 @@ Test the add-on with curl:
 ```bash
 # From another machine on your network
 curl -u "dyndns:password" \
-  "http://homeassistant.local:8080/nic/update?hostname=test.example.com&myip=1.2.3.4"
+  "http://homeassistant.local:8053/nic/update?hostname=test.example.com&myip=1.2.3.4"
 ```
 
 Expected responses:
@@ -189,7 +179,7 @@ Expected responses:
 
 ## Security Considerations
 
-- **Password Storage**: Passwords are automatically hashed with bcrypt
+- **Authentication**: HTTP Basic Authentication protects the DynDNS endpoint
 - **Network Access**: Consider using Ingress instead of exposing the port
 - **HTTPS**: Use a reverse proxy for SSL/TLS encryption
 - **Credentials**: Never commit credentials to version control

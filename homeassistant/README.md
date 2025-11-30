@@ -23,7 +23,7 @@ Self-hosted Dynamic DNS service with support for multiple DNS providers. Perfect
 ## Features
 
 - 🌐 **Multi-Provider Support**: Works with Netcup and AWS Route53
-- 🔐 **Secure**: Uses bcrypt password hashing
+- 🔐 **Secure**: HTTP Basic Authentication
 - 🎯 **Wildcard DNS**: Full support for wildcard DNS records (e.g., `*.example.com`)
 - 📱 **Ingress Support**: Access via Home Assistant UI
 - 🔄 **Auto-Updates**: Compatible with all standard DynDNS clients
@@ -43,27 +43,17 @@ Self-hosted Dynamic DNS service with support for multiple DNS providers. Perfect
 
 The add-on reads user settings from `/data/options.json` by default. If your Supervisor setup stores `options.json` elsewhere, set `ADDON_OPTIONS_PATH` before starting the container to point to the desired file.
 
-When Home Assistant launches the add-on (or you run the Docker image without CLI args), the binary auto-starts in `server` mode by default—no extra command is needed. If you invoke the binary manually, you can still run `hash-password`, `update`, etc.
-
-### Generate Password Hash
-
-Before configuring the add-on, you need to generate a bcrypt hash of your password:
-
-```bash
-docker run --rm -i ghcr.io/markussiebert/homeddns:latest hash-password
-# Type your password and press Enter
-# Copy the output hash (starts with $2a$10$...)
-```
+When Home Assistant launches the add-on (or you run the Docker image without CLI args), the binary auto-starts in `server` mode by default—no extra command is needed. If you invoke the binary manually, you can still run the `update` command.
 
 ### Basic Configuration
 
 ```yaml
 auth_username: "dyndns"
-auth_password_hash: "$2a$10$..." # Paste the hash you generated above
+auth_password: "$2a$10$..." # Paste the hash you generated above
 dns_provider: "netcup_ccp"
 domain: "example.com"
 dns_ttl: 60
-port: 8080
+port: 8053
 ```
 
 ### Netcup Provider
@@ -106,11 +96,11 @@ aws_region: "us-east-1"
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
 | `auth_username` | Yes | `dyndns` | Username for Basic Authentication |
-| `auth_password_hash` | Yes | - | Bcrypt hash of your password (generate with `docker run` command above) |
+| `auth_password` | Yes | - | Your password for Basic Authentication |
 | `dns_provider` | Yes | `netcup_ccp` | DNS provider (`netcup_ccp` or `route53`) |
 | `domain` | Yes | - | Your domain name (e.g., `example.com`) |
 | `dns_ttl` | No | `60` | DNS record TTL in seconds (30-86400) |
-| `port` | No | `8080` | HTTP server port |
+| `port` | No | `8053` | HTTP server port |
 | `netcup_customer_number` | For Netcup | - | Your Netcup customer number |
 | `netcup_api_key` | For Netcup | - | Netcup API key |
 | `netcup_api_password` | For Netcup | - | Netcup API password |
@@ -130,7 +120,7 @@ With Ingress enabled, you can access HomeDDNS through Home Assistant:
 
 If you prefer direct access, configure your DynDNS client to use:
 
-**URL:** `http://homeassistant.local:8080/nic/update?hostname=home.example.com&myip=1.2.3.4`
+**URL:** `http://homeassistant.local:8053/nic/update?hostname=home.example.com&myip=1.2.3.4`
 
 **Authentication:** Basic Auth with your configured username/password
 
@@ -144,14 +134,14 @@ If you prefer direct access, configure your DynDNS client to use:
    - Hostname: `home.example.com`
    - Username: `dyndns`
    - Password: Your configured password
-   - Server: `homeassistant.local:8080/%h`
+   - Server: `homeassistant.local:8053/%h`
 
 #### Fritz!Box
 
 1. Internet → Freigaben → DynDNS
 2. Configure:
    - DynDNS-Anbieter: `Benutzerdefiniert`
-   - Update-URL: `http://homeassistant.local:8080/nic/update?hostname=<domain>&myip=<ipaddr>`
+   - Update-URL: `http://homeassistant.local:8053/nic/update?hostname=<domain>&myip=<ipaddr>`
    - Domainname: `home.example.com`
    - Benutzername: `dyndns`
    - Kennwort: Your configured password
@@ -162,7 +152,7 @@ To update wildcard DNS records:
 
 ```bash
 curl -u "dyndns:password" \
-  "http://homeassistant.local:8080/nic/update?hostname=*.example.com&myip=1.2.3.4"
+  "http://homeassistant.local:8053/nic/update?hostname=*.example.com&myip=1.2.3.4"
 ```
 
 ### Automatic IP Detection
@@ -171,7 +161,7 @@ Omit the `myip` parameter to use the request source IP:
 
 ```bash
 curl -u "dyndns:password" \
-  "http://homeassistant.local:8080/nic/update?hostname=home.example.com"
+  "http://homeassistant.local:8053/nic/update?hostname=home.example.com"
 ```
 
 ## Response Codes

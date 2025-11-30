@@ -14,15 +14,13 @@ import (
 // CLI holds the command-line interface structure.
 type CLI struct {
 	Server struct {
-		Port int `help:"Port to listen on." default:"8080"`
+		Port int `help:"Port to listen on." default:"8053"`
 	} `cmd:"" help:"Run as a web server."`
 
 	Update struct {
 		Hostname string `arg:"" help:"Hostname to update (e.g., sub.domain.com)."`
 		Type     string `help:"Record type (A or AAAA)." default:"A" enum:"A,AAAA"`
 	} `cmd:"" help:"Update a DNS record with the current public IP."`
-
-	HashPassword struct{} `cmd:"" help:"Generate bcrypt hash from stdin password."`
 
 	Version struct{} `cmd:"" help:"Print the current version."`
 
@@ -83,12 +81,6 @@ func main() {
 
 	if ctx.Command() == "version" {
 		fmt.Println(versionString())
-		return
-	}
-
-	if ctx.Command() == "hash-password" {
-		err := cmd.RunHashPassword()
-		ctx.FatalIfErrorf(err)
 		return
 	}
 

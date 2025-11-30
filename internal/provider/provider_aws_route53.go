@@ -34,9 +34,8 @@ func NewAwsRoute53Client(ctx context.Context) (*AwsRoute53Client, error) {
 
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		logger.Error("Failed to load AWS config: %v", err)
 		logger.Info("Ensure AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_REGION are set")
-		return nil, fmt.Errorf("load AWS config: %w", err)
+		return nil, logger.Errorf("load AWS config: %w", err)
 	}
 
 	logger.Info("AWS Route53 client initialized successfully (region: %s)", cfg.Region)

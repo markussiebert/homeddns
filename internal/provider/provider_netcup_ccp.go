@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/markussiebert/homeddns/internal/logger"
+	"github.com/markussiebert/homeddns/internal/util"
 )
 
 const (
@@ -28,16 +29,11 @@ const (
 	netcupCredFile     = "netcup_credentials"
 )
 
-// maskValue masks a value for logging
-func maskValue(value string) string {
-	if len(value) == 0 {
-		return "<empty>"
-	}
-	if len(value) <= 4 {
-		return "***"
-	}
-	// Show first 2 and last 2 characters
-	return value[:2] + "..." + value[len(value)-2:]
+// NetcupConfig holds Netcup specific configuration.
+type NetcupConfig struct {
+	CustomerNumber string
+	ApiKey         string
+	ApiPassword    string
 }
 
 // LoadNetcupConfig loads Netcup credentials from environment variables or credential file
@@ -59,7 +55,7 @@ func LoadNetcupConfig() (*NetcupConfig, error) {
 
 	if hasCustomerNumber && hasApiKey && hasApiPassword {
 		logger.Info("Netcup credentials loaded from environment variables")
-		logger.Debug("Customer number: %s", maskValue(config.CustomerNumber))
+		logger.Debug("Customer number: %s", util.MaskValue(config.CustomerNumber))
 		return config, nil
 	}
 
@@ -67,8 +63,7 @@ func LoadNetcupConfig() (*NetcupConfig, error) {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		logger.Error("Failed to get home directory: %v", err)
-		return nil, fmt.Errorf("failed to get home dir: %w", err)
+		return nil, logger.Errorf("failed to get home dir: %w", err)
 	}
 
 	credFile := filepath.Join(homeDir, netcupCredDir, netcupCredFile)
@@ -76,12 +71,10 @@ func LoadNetcupConfig() (*NetcupConfig, error) {
 
 	file, err := os.Open(credFile)
 	if os.IsNotExist(err) {
-		logger.Error("Netcup credentials file not found at %s", credFile)
 		logger.Info("Please set NETCUP_CUSTOMER_NUMBER, NETCUP_API_KEY, NETCUP_API_PASSWORD environment variables or create credentials file")
-		return nil, fmt.Errorf("netcup credentials not found. Please set NETCUP_* environment variables or create %s", credFile)
+		return nil, logger.Errorf("netcup credentials not found. Please set NETCUP_* environment variables or create %s", credFile)
 	} else if err != nil {
-		logger.Error("Failed to open credentials file %s: %v", credFile, err)
-		return nil, fmt.Errorf("failed to open credentials file %s: %w", credFile, err)
+		return nil, logger.Errorf("failed to open credentials file %s: %w", credFile, err)
 	}
 	defer file.Close()
 
@@ -109,19 +102,19 @@ func LoadNetcupConfig() (*NetcupConfig, error) {
 		case "customer_number":
 			if config.CustomerNumber == "" {
 				config.CustomerNumber = value
-				logger.Debug("Loaded customer_number from file: %s", maskValue(value))
+				logger.Debug("Loaded customer_number from file: %s", util.MaskValue(value))
 				keysFound++
 			}
 		case "api_key":
 			if config.ApiKey == "" {
 				config.ApiKey = value
-				logger.Debug("Loaded api_key from file: %s", maskValue(value))
+				logger.Debug("Loaded api_key from file: %s", util.MaskValue(value))
 				keysFound++
 			}
 		case "api_password":
 			if config.ApiPassword == "" {
 				config.ApiPassword = value
-				logger.Debug("Loaded api_password from file: %s", maskValue(value))
+				logger.Debug("Loaded api_password from file: %s", util.MaskValue(value))
 				keysFound++
 			}
 		default:
@@ -130,17 +123,15 @@ func LoadNetcupConfig() (*NetcupConfig, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.Error("Failed to read credentials file: %v", err)
-		return nil, fmt.Errorf("failed to read credentials file: %w", err)
+		return nil, logger.Errorf("failed to read credentials file: %w", err)
 	}
 
 	logger.Debug("Read %d lines from credentials file, found %d valid keys", lineNum, keysFound)
 
 	if config.CustomerNumber == "" || config.ApiKey == "" || config.ApiPassword == "" {
-		logger.Error("Incomplete Netcup credentials after reading env vars and file")
 		logger.Debug("Have customer_number: %v, api_key: %v, api_password: %v",
 			config.CustomerNumber != "", config.ApiKey != "", config.ApiPassword != "")
-		return nil, fmt.Errorf("incomplete netcup credentials in env vars and file")
+		return nil, logger.Errorf("incomplete netcup credentials in env vars and file")
 	}
 
 	logger.Info("Netcup credentials successfully loaded from file: %s", credFile)
@@ -285,7 +276,6 @@ func (c *NetcupClient) doRequest(ctx context.Context, req *APIRequest) (*APIResp
 		// Check for rate limiting
 		if apiResp.StatusCode == 4013 {
 			logger.Warn("Netcup: Rate limit hit (180 req/min). Error: %s", apiResp.LongMessage)
-			return nil, fmt.Errorf("rate limit exceeded: %s (code: %d)", apiResp.LongMessage, apiResp.StatusCode)
 		}
 		return nil, fmt.Errorf("API error: %s - %s (code: %d)", apiResp.ShortMessage, apiResp.LongMessage, apiResp.StatusCode)
 	}
@@ -311,14 +301,12 @@ func (c *NetcupClient) login(ctx context.Context) error {
 	logger.Debug("Netcup: Sending login request to %s", c.endpoint)
 	resp, err := c.doRequest(ctx, req)
 	if err != nil {
-		logger.Error("Netcup: Login request failed: %v", err)
-		return fmt.Errorf("login request: %w", err)
+		return logger.Errorf("login request: %w", err)
 	}
 
 	var loginResp LoginResponse
 	if err := json.Unmarshal(resp.ResponseData, &loginResp); err != nil {
-		logger.Error("Netcup: Failed to parse login response: %v", err)
-		return fmt.Errorf("unmarshal login response: %w", err)
+		return logger.Errorf("unmarshal login response: %w", err)
 	}
 
 	c.sessionMu.Lock()
@@ -336,7 +324,7 @@ func (c *NetcupClient) login(ctx context.Context) error {
 	logger.Info("Netcup: ✓ Login successful (#%d, total time: %v), session ID: %s..., valid until %s (duration: %v)",
 		loginCount,
 		timeSinceFirst.Round(time.Second),
-		maskValue(sessionID),
+		util.MaskValue(sessionID),
 		c.sessionExpiry.Format("15:04:05"),
 		SessionRefreshTime)
 	return nil

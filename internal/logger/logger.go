@@ -125,6 +125,26 @@ func (l *Logger) Error(format string, v ...interface{}) {
 	l.log(LevelError, format, v...)
 }
 
+// Errorf logs an error message and returns the error for convenient error handling
+// This eliminates the need to call both logger.Error() and fmt.Errorf() separately
+func (l *Logger) Errorf(format string, v ...interface{}) error {
+	err := fmt.Errorf(format, v...)
+	l.log(LevelError, "%v", err)
+	return err
+}
+
+// Fatal logs an error message and exits the program with status code 1
+func (l *Logger) Fatal(format string, v ...interface{}) {
+	l.log(LevelError, format, v...)
+	os.Exit(1)
+}
+
+// Fatalf logs a formatted error message and exits the program with status code 1
+// This is an alias for Fatal for consistency with other logging methods
+func (l *Logger) Fatalf(format string, v ...interface{}) {
+	l.Fatal(format, v...)
+}
+
 // Default package-level functions using the default logger
 
 // SetLevel sets the log level for the default logger
@@ -160,4 +180,19 @@ func Warn(format string, v ...interface{}) {
 // Error logs an error message using the default logger
 func Error(format string, v ...interface{}) {
 	defaultLogger.Error(format, v...)
+}
+
+// Errorf logs an error message and returns the error using the default logger
+func Errorf(format string, v ...interface{}) error {
+	return defaultLogger.Errorf(format, v...)
+}
+
+// Fatal logs an error message and exits the program with status code 1
+func Fatal(format string, v ...interface{}) {
+	defaultLogger.Fatal(format, v...)
+}
+
+// Fatalf logs a formatted error message and exits the program with status code 1
+func Fatalf(format string, v ...interface{}) {
+	defaultLogger.Fatalf(format, v...)
 }

@@ -10,7 +10,7 @@ A lightweight, self-hosted DynDNS (Dynamic DNS) service with pluggable DNS provi
 - **Session Management**: Automatic session handling (Netcup: 15-minute timeout with proactive refresh)
 - **Multiple Formats**: Supports both standard DynDNS format and UniFi custom provider format
 - **Wildcard DNS**: Full support for wildcard DNS records (e.g., `*.example.com`)
-- **Basic Authentication**: Secured with bcrypt password hashing
+- **Basic Authentication**: Simple and secure HTTP Basic Auth
 - **Flexible Deployment**: Run with Docker Compose, Kubernetes, or Home Assistant addon
 - **Health Checks**: Built-in health endpoint for Kubernetes probes
 - **Minimal Attack Surface**: Uses distroless base image and runs as non-root
@@ -85,10 +85,10 @@ services:
     container_name: homeddns
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8053:8053"
     environment:
       - AUTH_USERNAME=dyndns
-      - AUTH_PASSWORD_HASH=$2a$10$... # Generate with script below
+      - AUTH_PASSWORD=your-secure-password
       - DNS_PROVIDER=netcup_ccp
       - DOMAIN=example.com
       - DNS_TTL=60
@@ -98,14 +98,7 @@ services:
       - NETCUP_API_PASSWORD=your-api-password
 ```
 
-2. **Generate password hash:**
-
-```bash
-docker run --rm ghcr.io/markussiebert/homeddns:latest \
-  /usr/bin/htpasswd -bnBC 10 "" your-password | tr -d ':\n'
-```
-
-3. **Start the service:**
+2. **Start the service:**
 
 ```bash
 docker-compose up -d
@@ -117,24 +110,14 @@ docker-compose up -d
 
 ### Option 2: Kubernetes
 
-### 1. Generate Password Hash
-
-Use the provided script to generate a bcrypt hash for your DynDNS password:
-
-```bash
-../scripts/generate-password-hash.sh your-password-here
-```
-
-This will output a bcrypt hash like: `$2a$10$...`
-
-### 2. Create Kubernetes Secret
+### 1. Create Kubernetes Secret
 
 Create a secret with your credentials:
 
 ```bash
 kubectl create secret generic homeddns-secret \
   --from-literal=auth-username=dyndns \
-  --from-literal=auth-password-hash='$2a$10$...' \
+  --from-literal=auth-password='your-secure-password' \
   --from-literal=netcup-customer-number=123456 \
   --from-literal=netcup-api-key=YOUR_API_KEY \
   --from-literal=netcup-api-password=YOUR_API_PASSWORD
@@ -147,7 +130,7 @@ kubectl create secret generic homeddns-secret \
 - Generate API Key and API Password
 - Customer Number is your Netcup customer number
 
-### 3. Deploy to Kubernetes
+### 2. Deploy to Kubernetes
 
 ```bash
 # Apply manifests
@@ -339,9 +322,9 @@ curl -u "dyndns:your-password" \
 
 | Variable                 | Required | Default | Description               |
 | ------------------------ | -------- | ------- | ------------------------- |
-| `PORT`                   | No       | `8080`  | HTTP server port          |
+| `PORT`                   | No       | `8053`  | HTTP server port          |
 | `AUTH_USERNAME`          | Yes      | -       | Basic auth username       |
-| `AUTH_PASSWORD_HASH`     | Yes      | -       | Bcrypt hash of password   |
+| `AUTH_PASSWORD`          | Yes      | -       | Basic auth password       |
 | `NETCUP_CUSTOMER_NUMBER` | Yes      | -       | Netcup customer number    |
 | `NETCUP_API_KEY`         | Yes      | -       | Netcup API key            |
 | `NETCUP_API_PASSWORD`    | Yes      | -       | Netcup API password       |
@@ -460,7 +443,7 @@ mise run run:dev
 
 # Or export environment variables manually
 export AUTH_USERNAME=dyndns
-export AUTH_PASSWORD_HASH='$2a$10$...'
+export AUTH_PASSWORD='$2a$10$...'
 export DNS_PROVIDER=netcup_ccp
 export DOMAIN=example.com
 export NETCUP_CUSTOMER_NUMBER=123456
@@ -478,11 +461,11 @@ mise run run:update -- test.example.com
 
 ```bash
 # Test health endpoint (no auth required)
-curl http://localhost:8080/health
+curl http://localhost:8053/health
 
 # Test DNS update
 curl -u "dyndns:your-password" \
-  "http://localhost:8080/nic/update?hostname=test.example.com&myip=1.2.3.4"
+  "http://localhost:8053/nic/update?hostname=test.example.com&myip=1.2.3.4"
 ```
 
 ### Why Ko for Container Builds?
@@ -524,12 +507,12 @@ Result: **14MB static binary** that runs anywhere with no dependencies!
 
 ## Security Considerations
 
-- All passwords are hashed using bcrypt (cost factor 10)
+- HTTP Basic Authentication for DynDNS endpoint
 - Container runs as non-root user (UID 65532)
 - Read-only root filesystem
 - No privilege escalation
 - Minimal container image (distroless)
-- All secrets stored in Kubernetes Secrets
+- All secrets stored in Kubernetes Secrets or environment variables
 
 ## Troubleshooting
 

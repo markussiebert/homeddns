@@ -64,7 +64,7 @@ func (h *DynDNSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	domain, subdomain := h.splitHostname(hostname)
 	if domain == "" {
-		logger.Error("Failed to split hostname '%s' into domain and subdomain", hostname)
+		logger.Warn("Failed to split hostname '%s' into domain and subdomain", hostname)
 		h.respond(w, "notfqdn", "", isStandardFormat)
 		return
 	}
@@ -73,7 +73,7 @@ func (h *DynDNSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get IP address
 	ipAddress := h.extractIP(r)
 	if ipAddress == "" {
-		logger.Error("Failed to extract valid IP address from request")
+		logger.Warn("Failed to extract valid IP address from request")
 		h.respond(w, "911", "", isStandardFormat)
 		return
 	}
