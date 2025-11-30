@@ -38,7 +38,7 @@ options:
   # AWS Route53 settings (optional)
   aws_access_key_id: ""
   aws_secret_access_key: ""
-  aws_region: "us-east-1"
+  aws_region: ""
 schema:
   auth_username: str
   auth_password_hash: password
