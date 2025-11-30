@@ -1,6 +1,6 @@
 name: "HomeDDNS - Dynamic DNS Updater"
 description: "Self-hosted Dynamic DNS service with support for Netcup and AWS Route53"
-version: "0.2.7"
+version: "0.2.8"
 slug: "homeddns"
 init: false
 arch:
