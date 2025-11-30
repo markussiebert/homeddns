@@ -47,7 +47,7 @@ type Logger struct {
 var defaultLogger *Logger
 
 func init() {
-	defaultLogger = New(os.Getenv("DEBUG"))
+	defaultLogger = New(os.Getenv("LOG_LEVEL"))
 }
 
 // New creates a new logger with the specified level
